@@ -37,6 +37,32 @@
 #include <time.h>
 #include <unistd.h>
 
+typedef struct
+{
+	long max;
+	long attribute;
+	long rank;
+} best_attribute;
+
+/* the user-defined function
+ */
+void MPI_get_best_attribute(void* in, void* inout, int* len, MPI_Datatype* dptr)
+{
+	// Suppress unused warning/error
+	(void) len;
+	(void) dptr;
+
+	best_attribute* ina	   = (best_attribute*) in;
+	best_attribute* inouta = (best_attribute*) inout;
+
+	if (ina->max > inouta->max)
+	{
+		inouta->max		  = ina->max;
+		inouta->attribute = ina->attribute;
+		inouta->rank	  = ina->rank;
+	}
+}
+
 /**
  * In this mode we don't write the disjoint matrix (DM).
  * Everytime we need a line or column from the DM it's generated from the
@@ -386,17 +412,17 @@ int main(int argc, char** argv)
 		dm.n_matrix_lines	   = toshare[3];
 	}
 
-	// dm.steps	= steps;
-	dm.s_offset = BLOCK_LOW(rank, size, dm.n_matrix_lines);
-	dm.s_size	= BLOCK_SIZE(rank, size, dm.n_matrix_lines);
+	dm.steps	= steps;
+	dm.s_offset = BLOCK_LOW(rank, size, dataset.n_words);
+	dm.s_size	= BLOCK_SIZE(rank, size, dataset.n_words);
 
 	// Make a copy of the steps
-	dm.steps = (steps_t*) malloc(dm.s_size * sizeof(steps_t));
-	memcpy(dm.steps, steps + dm.s_offset, dm.s_size * sizeof(steps_t));
+	// dm.steps = (steps_t*) malloc(dm.s_size * sizeof(steps_t));
+	// memcpy(dm.steps, steps + dm.s_offset, dm.s_size * sizeof(steps_t));
 
 	// We no longer need the original steps
-	MPI_Barrier(node_comm);
-	MPI_Win_free(&win_shared_steps);
+	// MPI_Barrier(node_comm);
+	// MPI_Win_free(&win_shared_steps);
 
 	if (rank == 0)
 	{
@@ -404,22 +430,6 @@ int main(int argc, char** argv)
 		TICK;
 	}
 
-	//	for (int r = 0; r < size; r++)
-	//	{
-	//		if (r == rank)
-	//		{
-	//			printf("Steps for rank %d\n", rank);
-	//			for (uint32_t i = 0; i < dm.s_size; i++)
-	//			{
-	//				printf(" - [%d] [%d] x [%d]\n", i, dm.steps[i].indexA + 1,
-	//					   dm.steps[i].indexB + 1);
-	//			}
-	//		}
-	//		sleep(1);
-	//	}
-	//
-	//	goto apply_set_cover;
-	// apply_set_cover:
 	/**
 	 * All:
 	 *  - Setup line covered array -> 0
@@ -463,14 +473,16 @@ int main(int argc, char** argv)
 	uint32_t n_words_in_column
 		= dm.n_matrix_lines / WORD_BITS + (dm.n_matrix_lines % WORD_BITS != 0);
 
+	word_t* best_column = (word_t*) calloc(n_words_in_column, sizeof(word_t));
+
 	word_t* covered_lines = (word_t*) calloc(n_words_in_column, sizeof(word_t));
 
 	/**
 	 * The number of attributes is rounded so we can check all bits during
 	 * the attribute totals calculation
 	 */
-	uint32_t* attribute_totals = (uint32_t*) calloc(
-		roundUp(dataset.n_attributes, WORD_BITS), sizeof(uint32_t));
+	uint32_t* attribute_totals
+		= (uint32_t*) calloc(dm.s_size * WORD_BITS, sizeof(uint32_t));
 
 	// Global totals. Only root needs these
 	/**
@@ -478,12 +490,12 @@ int main(int argc, char** argv)
 	 * It's filled at the start using the sum of all the totals for each
 	 * process.
 	 */
-	uint32_t* global_attribute_totals = NULL;
+	// uint32_t* global_attribute_totals = NULL;
 
 	/**
 	 * Buffer to store the subtotal for each loop
 	 */
-	uint32_t* attribute_totals_buffer = NULL;
+	// uint32_t* attribute_totals_buffer = NULL;
 
 	/**
 	 * Selected attributes aka the solution
@@ -492,11 +504,11 @@ int main(int argc, char** argv)
 
 	if (rank == 0)
 	{
-		global_attribute_totals
-			= (uint32_t*) calloc(dataset.n_attributes, sizeof(uint32_t));
+		// global_attribute_totals = (uint32_t*) calloc(dataset.n_attributes,
+		// sizeof(uint32_t));
 
-		attribute_totals_buffer
-			= (uint32_t*) calloc(dataset.n_attributes, sizeof(uint32_t));
+		// attribute_totals_buffer = (uint32_t*) calloc(dataset.n_attributes,
+		// sizeof(uint32_t));
 
 		selected_attributes = (word_t*) calloc(dataset.n_words, sizeof(word_t));
 	}
@@ -505,14 +517,16 @@ int main(int argc, char** argv)
 	// BUILD INITIAL TOTALS
 	//*********************************************************/
 	// TICK;
-	for (uint32_t line = 0; line < dm.s_size; line++)
+	for (uint32_t line = 0; line < dm.n_matrix_lines; line++)
 	{
-		word_t* la = dataset.data + dm.steps[line].indexA * dataset.n_words;
-		word_t* lb = dataset.data + dm.steps[line].indexB * dataset.n_words;
+		word_t* la = dataset.data + dm.steps[line].indexA * dataset.n_words
+			+ dm.s_offset;
+		word_t* lb = dataset.data + dm.steps[line].indexB * dataset.n_words
+			+ dm.s_offset;
 
 		uint32_t c_attribute = 0;
 
-		for (uint32_t w = 0; w < dataset.n_words; w++)
+		for (uint32_t w = 0; w < dm.s_size; w++)
 		{
 			word_t lxor = la[w] ^ lb[w];
 
@@ -528,24 +542,24 @@ int main(int argc, char** argv)
 		//		 TICK;
 	}
 
-	// exit(EXIT_SUCCESS);
-
-	// for (int r = 0; r < size; r++)
-	//{
-	//	if (r == rank)
+	//	for (int r = 0; r < size; r++)
 	//	{
-	//		printf("totals for rank %d: ", rank);
-	//		for (uint32_t i = 0; i < dataset.n_attributes; i++)
+	//		if (r == rank)
 	//		{
-	//			printf("%d ", attribute_totals[i]);
+	//			printf("totals for rank %d: ", rank);
+	//			for (uint32_t i = 0;
+	//				 i < MIN(dataset.n_attributes, dm.s_size * WORD_BITS); i++)
+	//			{
+	//				if (attribute_totals[i] >= 510000)
+	//				{
+	//					printf("%ld: %d\n", dm.s_offset * WORD_BITS + i,
+	//						   attribute_totals[i]);
+	//				}
+	//			}
+	//			printf("\n");
 	//		}
-	//		printf("\n");
+	//		sleep(1);
 	//	}
-	//	sleep(1);
-	// }
-
-	MPI_Reduce(attribute_totals, global_attribute_totals, dataset.n_attributes,
-			   MPI_UINT32_T, MPI_SUM, 0, comm);
 
 	//	if (rank == 0)
 	//	{
@@ -566,86 +580,148 @@ int main(int argc, char** argv)
 		/**
 		 * Get best attribute index
 		 */
-		int64_t best_attribute = 0;
+		best_attribute local_max, best_max;
 
-		if (rank == 0)
+		// What is my best attribute
+		int64_t my_best_attribute = get_best_attribute_index(
+			attribute_totals,
+			MIN(dm.s_size * WORD_BITS,
+				dataset.n_attributes - (dm.s_offset * WORD_BITS)));
+
+		// My best attribute translate to which global attribute?
+		int64_t my_best_attribute_global = -1;
+
+		if (my_best_attribute != -1)
 		{
-			best_attribute = get_best_attribute_index(global_attribute_totals,
-													  dataset.n_attributes);
+			my_best_attribute_global
+				= my_best_attribute + dm.s_offset * WORD_BITS;
 		}
 
-		/**
-		 * Share with everyone
-		 */
-		MPI_Bcast(&best_attribute, 1, MPI_INT64_T, 0, comm);
+		//	 for (int r = 0; r < size; r++)
+		//	{
+		//		if (r == rank)
+		//		{
+		//
+		// printf("[%d] c:%d, mba: %ld, gba: %ld\n", rank,
+		//	   attribute_totals[my_best_attribute], my_best_attribute,
+		//	   my_best_attribute_global);
+		//		}
+		//		sleep(1);
+		//	}
+
+		local_max.max
+			= my_best_attribute == -1 ? 0 : attribute_totals[my_best_attribute];
+		local_max.attribute = my_best_attribute_global;
+		local_max.rank		= rank;
+
+		best_max.max	   = 0;
+		best_max.attribute = -1;
+		best_max.rank	   = -1;
+
+		MPI_Op myOp;
+		MPI_Datatype ctype;
+
+		// explain to MPI how type best_attribute is defined
+		MPI_Type_contiguous(3, MPI_LONG, &ctype);
+		MPI_Type_commit(&ctype);
+
+		// create the complex-product user-op
+		MPI_Op_create(MPI_get_best_attribute, true, &myOp);
+
+		// At this point, the answer resides on process root
+		MPI_Allreduce(&local_max, &best_max, 1, ctype, myOp, comm);
 
 		/**
-		 * If best_attribute is -1 we are done
+		 * If the best attribute is -1 we're done here
 		 */
-		if (best_attribute < 0)
+		if (best_max.attribute == -1)
 		{
 			goto show_solution;
 		}
 
-		// Which word has the best attribute
-		uint32_t best_word = best_attribute / WORD_BITS;
-
-		// Which bit?
-		uint32_t best_bit = WORD_BITS - best_attribute % WORD_BITS - 1;
-
+		/**
+		 * Mark attributed as selected
+		 */
 		if (rank == 0)
 		{
-			printf(" - Selected attribute #%ld [%d]", best_attribute,
-				   attribute_totals[best_attribute]);
+			printf(" - Selected attribute #%ld", best_max.attribute);
 
 			TOCK(stdout);
 			TICK;
+
+			// Which word has the best attribute
+			uint32_t best_word = best_max.attribute / WORD_BITS;
+
+			// Which bit?
+			uint32_t best_bit = WORD_BITS - best_max.attribute % WORD_BITS - 1;
 
 			// Mark best attribute as selected
 			BIT_SET(selected_attributes[best_word], best_bit);
 		}
 
+		//		/**
+		//		 * We can get some lopsized distribution, and some process
+		// might finish
+		//		 * earlier, but we need to participate in the mpi reduce
+		//		 */
+		//		if (dm.s_size == 0)
+		//		{
+		//			printf("[%d] NOTHING TO DO!\n", rank);
+		//			goto mpi_reduce;
+		//		}
+		//
+
 		/**
-		 * We can get some lopsized distribution, and some process might finish
-		 * earlier, but we need to participate in the mpi reduce
+		 * The best attribute is mine?
 		 */
-		if (dm.s_size == 0)
+		if (best_max.rank == rank)
 		{
-			printf("[%d] NOTHING TO DO!\n", rank);
-			goto mpi_reduce;
-		}
+			// printf("[%d] gmax: %ld, lmax: %ld YAY!\n", rank,
+			// best_max.attribute, local_max.attribute);
 
-		//***********************************************************/
-		// BUILD BEST COLUMN
-		//***********************************************************/
+			// Which word has the best attribute
+			uint32_t best_word = best_max.attribute / WORD_BITS;
 
-		word_t* best_column
-			= (word_t*) calloc(n_words_in_column, sizeof(word_t));
+			// Which bit?
+			uint32_t best_bit = WORD_BITS - best_max.attribute % WORD_BITS - 1;
 
-		for (uint32_t line = 0; line < dm.s_size; line++)
-		{
-			word_t* la = dataset.data + dm.steps[line].indexA * dataset.n_words
-				+ best_word;
-			word_t* lb = dataset.data + dm.steps[line].indexB * dataset.n_words
-				+ best_word;
-
-			word_t lxor = *la ^ *lb;
-
-			if (BIT_CHECK(lxor, best_bit))
+			//***********************************************************/
+			// BUILD BEST COLUMN
+			//***********************************************************/
+			for (uint32_t line = 0; line < dm.n_matrix_lines; line++)
 			{
-				// Where to save it
-				uint32_t current_word = line / WORD_BITS;
+				word_t* la = dataset.data
+					+ dm.steps[line].indexA * dataset.n_words + best_word;
+				word_t* lb = dataset.data
+					+ dm.steps[line].indexB * dataset.n_words + best_word;
 
-				// Which bit?
-				uint32_t current_bit = WORD_BITS - line % WORD_BITS - 1;
+				word_t lxor = *la ^ *lb;
 
-				BIT_SET(best_column[current_word], current_bit);
+				if (BIT_CHECK(lxor, best_bit))
+				{
+					// Where to save it
+					uint32_t current_word = line / WORD_BITS;
+
+					// Which bit?
+					uint32_t current_bit = WORD_BITS - line % WORD_BITS - 1;
+
+					BIT_SET(best_column[current_word], current_bit);
+				}
 			}
+			//***********************************************************/
+			// END BUILD BEST COLUMN
+			//***********************************************************/
+		}
+		else
+		{
+			// We don't have the best attribute, so we'll wait for the
+			// best column
+			// printf("[%d] gmax: %ld, lmax: %ld OHHhh!\n", rank,
+			// best_max.attribute, local_max.attribute);
 		}
 
-		//***********************************************************/
-		// END BUILD BEST COLUMN
-		//***********************************************************/
+		MPI_Bcast(best_column, n_words_in_column, MPI_UINT64_T, best_max.rank,
+				  comm);
 
 		//***************************************************************/
 		// UPDATE ATTRIBUTES TOTALS
@@ -654,13 +730,12 @@ int main(int argc, char** argv)
 		/**
 		 * Reset attributes totals
 		 */
-		memset(attribute_totals, 0,
-			   roundUp(dataset.n_attributes, WORD_BITS) * sizeof(uint32_t));
+		// memset(attribute_totals, 0, dm.s_size*WORD_BITS * sizeof(uint32_t));
 
 		/**
 		 * Get the totals for the uncovered lines covered by the best attribute.
 		 */
-		for (uint32_t line = 0; line < dm.s_size; line++)
+		for (uint32_t line = 0; line < dm.n_matrix_lines; line++)
 		{
 			// Is this line covered?
 			// Yes: skip
@@ -686,18 +761,20 @@ int main(int argc, char** argv)
 
 			// This line was uncovered, but is covered now
 			// Calculate attributes totals
-			word_t* la = dataset.data + dm.steps[line].indexA * dataset.n_words;
-			word_t* lb = dataset.data + dm.steps[line].indexB * dataset.n_words;
+			word_t* la = dataset.data + dm.steps[line].indexA * dataset.n_words
+				+ dm.s_offset;
+			word_t* lb = dataset.data + dm.steps[line].indexB * dataset.n_words
+				+ dm.s_offset;
 
 			uint32_t c_attribute = 0;
 
-			for (uint32_t w = 0; w < dataset.n_words; w++)
+			for (uint32_t w = 0; w < dm.s_size; w++)
 			{
 				word_t lxor = la[w] ^ lb[w];
 
 				for (int8_t bit = WORD_BITS - 1; bit >= 0; bit--, c_attribute++)
 				{
-					attribute_totals[c_attribute] += BIT_CHECK(lxor, bit);
+					attribute_totals[c_attribute] -= BIT_CHECK(lxor, bit);
 				}
 			}
 		}
@@ -707,7 +784,7 @@ int main(int argc, char** argv)
 		//		if (r == rank)
 		//		{
 		//			printf("totals for rank %d: ", rank);
-		//			for (uint32_t i = 0; i < MIN(10,dataset.n_attributes); i++)
+		//			for (uint32_t i = 0; i < MIN(10, dataset.n_attributes); i++)
 		//			{
 		//				printf("%d ", attribute_totals[i]);
 		//			}
@@ -716,9 +793,10 @@ int main(int argc, char** argv)
 		//		sleep(1);
 		//	}
 
-mpi_reduce:
-		MPI_Reduce(attribute_totals, attribute_totals_buffer,
-				   dataset.n_attributes, MPI_UINT32_T, MPI_SUM, 0, comm);
+		// mpi_reduce:
+		//		MPI_Reduce(attribute_totals, attribute_totals_buffer,
+		//				   dataset.n_attributes, MPI_UINT32_T, MPI_SUM, 0,
+		// comm);
 
 		//	if (rank == 0)
 		//	{
@@ -747,28 +825,34 @@ mpi_reduce:
 		// END UPDATE COVERED LINES
 		//***************************************************************/
 
-		//***************************************************************/
-		// UPDATE GLOBAL TOTALS
-		//***************************************************************/
+		// MPI_Barrier(comm);
+		//  exit(EXIT_SUCCESS);
+		// goto show_solution;
 
-		if (rank == 0)
-		{
-			for (uint32_t i = 0; i < dataset.n_attributes; i++)
-			{
-				global_attribute_totals[i] -= attribute_totals_buffer[i];
-			}
-
-			//	 printf("[%d] GLOBAL totals: \n", rank);
-			//	  for (uint32_t i = 0; i < MIN(10,dataset.n_attributes); i++)
-			//	{
-			//	  printf("  g: %d, b: %d\n", global_attribute_totals[i],
-			//	  attribute_totals_buffer[i]);
-			//	 }
-			//	 printf("\n");
-		}
-		//***************************************************************/
-		//  END UPDATE GLOBAL TOTALS
-		//***************************************************************/
+		//		//***************************************************************/
+		//		// UPDATE GLOBAL TOTALS
+		//		//***************************************************************/
+		//
+		//		if (rank == 0)
+		//		{
+		//			for (uint32_t i = 0; i < dataset.n_attributes; i++)
+		//			{
+		//				global_attribute_totals[i] -=
+		// attribute_totals_buffer[i];
+		//			}
+		//
+		//			//	 printf("[%d] GLOBAL totals: \n", rank);
+		//			//	  for (uint32_t i = 0; i < MIN(10,dataset.n_attributes);
+		// i++)
+		//			//	{
+		//			//	  printf("  g: %d, b: %d\n", global_attribute_totals[i],
+		//			//	  attribute_totals_buffer[i]);
+		//			//	 }
+		//			//	 printf("\n");
+		//		}
+		//		//***************************************************************/
+		//		//  END UPDATE GLOBAL TOTALS
+		//		//***************************************************************/
 	}
 
 show_solution:
@@ -790,9 +874,6 @@ show_solution:
 		printf("}\n");
 	}
 
-	//  wait for everyone
-	MPI_Barrier(comm);
-
 	if (rank == 0)
 	{
 		fprintf(stdout, "All done! ");
@@ -802,6 +883,12 @@ show_solution:
 				(main_tock.tv_nsec - main_tick.tv_nsec) / 1000000000.0
 					+ (main_tock.tv_sec - main_tick.tv_sec));
 	}
+
+	//  wait for everyone
+	MPI_Barrier(comm);
+
+	MPI_Win_free(&win_shared_steps);
+	MPI_Win_free(&win_shared_dset);
 
 	dataset.data = NULL;
 	dm.steps	 = NULL;
