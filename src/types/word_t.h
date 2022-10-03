@@ -7,8 +7,8 @@
  ============================================================================
  */
 
-#ifndef WORD_T_H__
-#define WORD_T_H__
+#ifndef WORD_T_H
+#define WORD_T_H
 
 #include <limits.h>
 #include <stdint.h>
@@ -19,4 +19,4 @@ typedef uint64_t word_t;
 // Size of our words in bits
 #define WORD_BITS (CHAR_BIT * sizeof(word_t))
 
-#endif // WORD_T_H__
+#endif // WORD_T_H

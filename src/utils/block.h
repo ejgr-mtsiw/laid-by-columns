@@ -6,8 +6,8 @@
  ============================================================================
  */
 
-#ifndef UTILS_BLOCK_H__
-#define UTILS_BLOCK_H__
+#ifndef UTILS_BLOCK_H
+#define UTILS_BLOCK_H
 
 // First element controlled by process id out of p processes, array length n
 #define BLOCK_LOW(id, p, n) ((id) * (n) / (p))
@@ -21,4 +21,4 @@
 // Process that controls item index from array with length n, p processes
 #define BLOCK_OWNER(index, p, n) (((p) * ((index) + 1) - 1) / (n))
 
-#endif // UTILS_BLOCK_H__
+#endif // UTILS_BLOCK_H

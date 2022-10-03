@@ -8,13 +8,10 @@
 
 #include "dataset.h"
 #include "dataset_hdf5.h"
-#include "dataset_hdf5_mpi.h"
 #include "disjoint_matrix.h"
-#include "disjoint_matrix_mpi.h"
 #include "jnsq.h"
 #include "set_cover.h"
-#include "set_cover_hdf5_mpi.h"
-#include "types/cover_t.h"
+#include "types/best_attribute_t.h"
 #include "types/dataset_hdf5_t.h"
 #include "types/dataset_t.h"
 #include "types/dm_t.h"
@@ -24,44 +21,18 @@
 #include "utils/block.h"
 #include "utils/clargs.h"
 #include "utils/math.h"
+#include "utils/mpi_custom.h"
 #include "utils/sort_r.h"
 #include "utils/timing.h"
 
 #include "hdf5.h"
 #include "mpi.h"
 
-#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
-
-typedef struct
-{
-	long max;
-	long attribute;
-	long rank;
-} best_attribute;
-
-/* the user-defined function
- */
-void MPI_get_best_attribute(void* in, void* inout, int* len, MPI_Datatype* dptr)
-{
-	// Suppress unused warning/error
-	(void) len;
-	(void) dptr;
-
-	best_attribute* ina	   = (best_attribute*) in;
-	best_attribute* inouta = (best_attribute*) inout;
-
-	if (ina->max > inouta->max)
-	{
-		inouta->max		  = ina->max;
-		inouta->attribute = ina->attribute;
-		inouta->rank	  = ina->rank;
-	}
-}
 
 /**
  * In this mode we don't write the disjoint matrix (DM).
@@ -416,14 +387,6 @@ int main(int argc, char** argv)
 	dm.s_offset = BLOCK_LOW(rank, size, dataset.n_words);
 	dm.s_size	= BLOCK_SIZE(rank, size, dataset.n_words);
 
-	// Make a copy of the steps
-	// dm.steps = (steps_t*) malloc(dm.s_size * sizeof(steps_t));
-	// memcpy(dm.steps, steps + dm.s_offset, dm.s_size * sizeof(steps_t));
-
-	// We no longer need the original steps
-	// MPI_Barrier(node_comm);
-	// MPI_Win_free(&win_shared_steps);
-
 	if (rank == 0)
 	{
 		fprintf(stdout, " - Finished broadcasting attributes\n");
@@ -431,35 +394,43 @@ int main(int argc, char** argv)
 	}
 
 	/**
-	 * All:
+	 * ALL:
 	 *  - Setup line covered array -> 0
+	 * ROOT:
 	 *  - Setup attribute covered array -> 0
 	 *
+	 * ALL:
 	 *  - Calculate attributes totals
-	 *  - MPI_Reduce attributes totals
 	 *
-	 *loop:
-	 * ROOT:
-	 *  - Selects the best attribute and blacklists it
-	 *  - Sends attribute id to everyone else
-	 *
-	 * !ROOT:
-	 *  - Wait for attribute message
+	 *LOOP:
+	 * All:
+	 *  - Calculate best attribute
+	 *  - MPI_Allreduce to select best global attribute
 	 *
 	 * ALL:
 	 *  - if there are no more lines to blacklist (attribute == -1):
-	 *   - goto show solution
-	 *
-	 * ALL:
-	 *  - Black list their lines covered by this attribute
-	 *  - Update atributes totals
-	 *  - MPI_Reduce attributes totals
+	 *  - goto SHOW_SOLUTION
 	 *
 	 * ROOT:
-	 *  - Subtract atribute totals from global attributes total
+	 *  - Marks best attribute as selected
 	 *
-	 * ALl:
-	 *  - goto loop
+	 * NODE ROOTS:
+	 *  - Generates cover line for the best atribute
+	 *  - MPI_Bcast to everyone else on the same node
+	 *
+	 * PROCESSES WITHOUT THE BEST ATTRIBUTE:
+	 *  - Wait for cover line
+	 *
+	 * ALL:
+	 *  - Update atributes totals based on the received cover line
+	 *  - Update line covered array
+	 *
+	 * ALL:
+	 *  - goto LOOP
+	 *
+	 *SHOW_SOLUTION:
+	 * ROOT:
+	 *  - Display list of selected attributes
 	 */
 
 	if (rank == 0)
@@ -470,11 +441,23 @@ int main(int argc, char** argv)
 	}
 
 	// The covered lines and covered attributes are bit arrays
+
+	/**
+	 * Number of words needed to store a column (attribute data)
+	 */
 	uint32_t n_words_in_column
 		= dm.n_matrix_lines / WORD_BITS + (dm.n_matrix_lines % WORD_BITS != 0);
 
+	/**
+	 * Bit array with the information about the lines covered (1) or not (0) by
+	 * the current best attribute
+	 */
 	word_t* best_column = (word_t*) calloc(n_words_in_column, sizeof(word_t));
 
+	/**
+	 * Bit array with the information about the lines already covered (1) or
+	 * not (0) so far
+	 */
 	word_t* covered_lines = (word_t*) calloc(n_words_in_column, sizeof(word_t));
 
 	/**
@@ -484,39 +467,22 @@ int main(int argc, char** argv)
 	uint32_t* attribute_totals
 		= (uint32_t*) calloc(dm.s_size * WORD_BITS, sizeof(uint32_t));
 
-	// Global totals. Only root needs these
-	/**
-	 * Full total for each attribute.
-	 * It's filled at the start using the sum of all the totals for each
-	 * process.
-	 */
-	// uint32_t* global_attribute_totals = NULL;
-
-	/**
-	 * Buffer to store the subtotal for each loop
-	 */
-	// uint32_t* attribute_totals_buffer = NULL;
-
 	/**
 	 * Selected attributes aka the solution
 	 */
 	word_t* selected_attributes = NULL;
 
+	/**
+	 * Only root needs them
+	 */
 	if (rank == 0)
 	{
-		// global_attribute_totals = (uint32_t*) calloc(dataset.n_attributes,
-		// sizeof(uint32_t));
-
-		// attribute_totals_buffer = (uint32_t*) calloc(dataset.n_attributes,
-		// sizeof(uint32_t));
-
 		selected_attributes = (word_t*) calloc(dataset.n_words, sizeof(word_t));
 	}
 
 	//*********************************************************/
 	// BUILD INITIAL TOTALS
 	//*********************************************************/
-	// TICK;
 	for (uint32_t line = 0; line < dm.n_matrix_lines; line++)
 	{
 		word_t* la = dataset.data + dm.steps[line].indexA * dataset.n_words
@@ -535,52 +501,14 @@ int main(int argc, char** argv)
 				attribute_totals[c_attribute] += BIT_CHECK(lxor, bit);
 			}
 		}
-
-		//		 printf("[%d] - Build line ", rank);
-		//
-		//		 TOCK(stdout);
-		//		 TICK;
 	}
-
-	//	for (int r = 0; r < size; r++)
-	//	{
-	//		if (r == rank)
-	//		{
-	//			printf("totals for rank %d: ", rank);
-	//			for (uint32_t i = 0;
-	//				 i < MIN(dataset.n_attributes, dm.s_size * WORD_BITS); i++)
-	//			{
-	//				if (attribute_totals[i] >= 510000)
-	//				{
-	//					printf("%ld: %d\n", dm.s_offset * WORD_BITS + i,
-	//						   attribute_totals[i]);
-	//				}
-	//			}
-	//			printf("\n");
-	//		}
-	//		sleep(1);
-	//	}
-
-	//	if (rank == 0)
-	//	{
-	//		printf("GLOBAL totals for rank %d:\n", rank);
-	//		for (uint32_t i = 0; i < MIN(10, dataset.n_attributes); i++)
-	//		{
-	//			printf("%d ", global_attribute_totals[i]);
-	//		}
-	//		printf("\n");
-	//	}
-
 	//*********************************************************/
 	// END BUILD INITIAL TOTALS
 	//*********************************************************/
 
 	while (true)
 	{
-		/**
-		 * Get best attribute index
-		 */
-		best_attribute local_max, best_max;
+		best_attribute_t local_max, best_max;
 
 		// What is my best attribute
 		int64_t my_best_attribute = get_best_attribute_index(
@@ -588,9 +516,8 @@ int main(int argc, char** argv)
 			MIN(dm.s_size * WORD_BITS,
 				dataset.n_attributes - (dm.s_offset * WORD_BITS)));
 
-		// My best attribute translate to which global attribute?
+		// My best attribute translates to which global attribute?
 		int64_t my_best_attribute_global = -1;
-
 		if (my_best_attribute != -1)
 		{
 			my_best_attribute_global
@@ -612,11 +539,10 @@ int main(int argc, char** argv)
 		local_max.max
 			= my_best_attribute == -1 ? 0 : attribute_totals[my_best_attribute];
 		local_max.attribute = my_best_attribute_global;
-		local_max.rank		= rank;
 
+		// Reset best
 		best_max.max	   = 0;
 		best_max.attribute = -1;
-		best_max.rank	   = -1;
 
 		MPI_Op myOp;
 		MPI_Datatype ctype;
@@ -625,10 +551,10 @@ int main(int argc, char** argv)
 		MPI_Type_contiguous(3, MPI_LONG, &ctype);
 		MPI_Type_commit(&ctype);
 
-		// create the complex-product user-op
+		// create the user-op
 		MPI_Op_create(MPI_get_best_attribute, true, &myOp);
 
-		// At this point, the answer resides on process root
+		// At this point, the answer resides on best_max
 		MPI_Allreduce(&local_max, &best_max, 1, ctype, myOp, comm);
 
 		/**
@@ -659,26 +585,12 @@ int main(int argc, char** argv)
 			BIT_SET(selected_attributes[best_word], best_bit);
 		}
 
-		//		/**
-		//		 * We can get some lopsized distribution, and some process
-		// might finish
-		//		 * earlier, but we need to participate in the mpi reduce
-		//		 */
-		//		if (dm.s_size == 0)
-		//		{
-		//			printf("[%d] NOTHING TO DO!\n", rank);
-		//			goto mpi_reduce;
-		//		}
-		//
-
 		/**
-		 * The best attribute is mine?
+		 * As all processes have access to the full dataset each node root will
+		 * generate the cover line for it's node
 		 */
-		if (best_max.rank == rank)
+		if (node_rank == 0)
 		{
-			// printf("[%d] gmax: %ld, lmax: %ld YAY!\n", rank,
-			// best_max.attribute, local_max.attribute);
-
 			// Which word has the best attribute
 			uint32_t best_word = best_max.attribute / WORD_BITS;
 
@@ -712,25 +624,12 @@ int main(int argc, char** argv)
 			// END BUILD BEST COLUMN
 			//***********************************************************/
 		}
-		else
-		{
-			// We don't have the best attribute, so we'll wait for the
-			// best column
-			// printf("[%d] gmax: %ld, lmax: %ld OHHhh!\n", rank,
-			// best_max.attribute, local_max.attribute);
-		}
 
-		MPI_Bcast(best_column, n_words_in_column, MPI_UINT64_T, best_max.rank,
-				  comm);
+		MPI_Bcast(best_column, n_words_in_column, MPI_UINT64_T, 0, node_comm);
 
 		//***************************************************************/
 		// UPDATE ATTRIBUTES TOTALS
 		//***************************************************************/
-
-		/**
-		 * Reset attributes totals
-		 */
-		// memset(attribute_totals, 0, dm.s_size*WORD_BITS * sizeof(uint32_t));
 
 		/**
 		 * Get the totals for the uncovered lines covered by the best attribute.
@@ -792,23 +691,6 @@ int main(int argc, char** argv)
 		//		}
 		//		sleep(1);
 		//	}
-
-		// mpi_reduce:
-		//		MPI_Reduce(attribute_totals, attribute_totals_buffer,
-		//				   dataset.n_attributes, MPI_UINT32_T, MPI_SUM, 0,
-		// comm);
-
-		//	if (rank == 0)
-		//	{
-		//		printf("[%d] totals for attribute %ld: \n", rank,
-		// best_attribute); 		for (uint32_t i = 0; i <
-		// MIN(10,dataset.n_attributes); i++)
-		//		{
-		//			printf("%d ", attribute_totals_buffer[i]);
-		//		}
-		//		printf("\n\n");
-		//	}
-
 		//***************************************************************/
 		// END UPDATE ATTRIBUTES TOTALS
 		//***************************************************************/
@@ -824,35 +706,6 @@ int main(int argc, char** argv)
 		//***************************************************************/
 		// END UPDATE COVERED LINES
 		//***************************************************************/
-
-		// MPI_Barrier(comm);
-		//  exit(EXIT_SUCCESS);
-		// goto show_solution;
-
-		//		//***************************************************************/
-		//		// UPDATE GLOBAL TOTALS
-		//		//***************************************************************/
-		//
-		//		if (rank == 0)
-		//		{
-		//			for (uint32_t i = 0; i < dataset.n_attributes; i++)
-		//			{
-		//				global_attribute_totals[i] -=
-		// attribute_totals_buffer[i];
-		//			}
-		//
-		//			//	 printf("[%d] GLOBAL totals: \n", rank);
-		//			//	  for (uint32_t i = 0; i < MIN(10,dataset.n_attributes);
-		// i++)
-		//			//	{
-		//			//	  printf("  g: %d, b: %d\n", global_attribute_totals[i],
-		//			//	  attribute_totals_buffer[i]);
-		//			//	 }
-		//			//	 printf("\n");
-		//		}
-		//		//***************************************************************/
-		//		//  END UPDATE GLOBAL TOTALS
-		//		//***************************************************************/
 	}
 
 show_solution:

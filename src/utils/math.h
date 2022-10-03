@@ -6,8 +6,8 @@
  ============================================================================
  */
 
-#ifndef UTILS_MATH_H__
-#define UTILS_MATH_H__
+#ifndef UTILS_MATH_H
+#define UTILS_MATH_H
 
 #include <stdint.h>
 
@@ -16,4 +16,4 @@
 
 uint32_t roundUp(uint32_t numToRound, uint32_t multiple);
 
-#endif // UTILS_MATH_H__
+#endif // UTILS_MATH_H
