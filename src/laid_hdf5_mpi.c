@@ -548,7 +548,7 @@ int main(int argc, char** argv)
 		MPI_Datatype ctype;
 
 		// explain to MPI how type best_attribute is defined
-		MPI_Type_contiguous(3, MPI_LONG, &ctype);
+		MPI_Type_contiguous(2, MPI_LONG, &ctype);
 		MPI_Type_commit(&ctype);
 
 		// create the user-op
@@ -570,7 +570,7 @@ int main(int argc, char** argv)
 		 */
 		if (rank == 0)
 		{
-			printf(" - Selected attribute #%ld", best_max.attribute);
+			printf(" - Selected attribute #%ld ", best_max.attribute);
 
 			TOCK(stdout);
 			TICK;
