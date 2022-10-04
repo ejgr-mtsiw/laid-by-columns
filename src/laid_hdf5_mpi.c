@@ -749,6 +749,11 @@ show_solution:
 	free_dataset(&dataset);
 	free_dm(&dm);
 
+	free(attribute_totals);
+	free(best_column);
+	free(covered_lines);
+	free(selected_attributes);
+
 	/* shut down MPI */
 	MPI_Finalize();
 
