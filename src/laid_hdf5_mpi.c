@@ -743,6 +743,12 @@ show_solution:
 	MPI_Win_free(&win_shared_steps);
 	MPI_Win_free(&win_shared_dset);
 
+	dataset.data = NULL;
+	dm.steps	 = NULL;
+
+	free_dataset(&dataset);
+	free_dm(&dm);
+
 	/* shut down MPI */
 	MPI_Finalize();
 
