@@ -383,9 +383,15 @@ int main(int argc, char** argv)
 		dm.n_matrix_lines	   = toshare[3];
 	}
 
-	dm.steps	= steps;
-	dm.s_offset = BLOCK_LOW(rank, size, dataset.n_words);
-	dm.s_size	= BLOCK_SIZE(rank, size, dataset.n_words);
+	dm.steps = steps;
+
+	// Distribute attributes by the processes
+	// Keep them in multiples of N_WORDS_CACHE_LINE words
+	// to maximize cache line usage
+	dm.a_offset
+		= BLOCK_LOW_MULTIPLE(rank, size, dataset.n_words, N_WORDS_CACHE_LINE);
+	dm.a_size
+		= BLOCK_SIZE_MULTIPLE(rank, size, dataset.n_words, N_WORDS_CACHE_LINE);
 
 	if (rank == 0)
 	{
@@ -465,7 +471,7 @@ int main(int argc, char** argv)
 	 * the attribute totals calculation
 	 */
 	uint32_t* attribute_totals
-		= (uint32_t*) calloc(dm.s_size * WORD_BITS, sizeof(uint32_t));
+		= (uint32_t*) calloc(dm.a_size * WORD_BITS, sizeof(uint32_t));
 
 	/**
 	 * Selected attributes aka the solution
@@ -483,16 +489,17 @@ int main(int argc, char** argv)
 	//*********************************************************/
 	// BUILD INITIAL TOTALS
 	//*********************************************************/
+	// calculate_initial_totals(&dm, &dataset, attribute_totals);
 	for (uint32_t line = 0; line < dm.n_matrix_lines; line++)
 	{
 		word_t* la = dataset.data + dm.steps[line].indexA * dataset.n_words
-			+ dm.s_offset;
+			+ dm.a_offset;
 		word_t* lb = dataset.data + dm.steps[line].indexB * dataset.n_words
-			+ dm.s_offset;
+			+ dm.a_offset;
 
 		uint32_t c_attribute = 0;
 
-		for (uint32_t w = 0; w < dm.s_size; w++)
+		for (uint32_t w = 0; w < dm.a_size; w++)
 		{
 			word_t lxor = la[w] ^ lb[w];
 
@@ -506,53 +513,48 @@ int main(int argc, char** argv)
 	// END BUILD INITIAL TOTALS
 	//*********************************************************/
 
+	/**
+	 * Build function to compare best atributes in MPI_Allreduce
+	 * In C we don't have a MPI_LONG_LONG custom type so we cretate a new
+	 * type and function to select the best attribute of all the best
+	 * attributes selected by each process
+	 */
+	MPI_Op myOp;
+	MPI_Datatype ctype;
+
+	// explain to MPI how type best_attribute is defined
+	MPI_Type_contiguous(2, MPI_LONG, &ctype);
+	MPI_Type_commit(&ctype);
+
+	// create the user-op
+	MPI_Op_create(MPI_get_best_attribute, true, &myOp);
+
 	while (true)
 	{
-		best_attribute_t local_max, best_max;
-
 		// What is my best attribute
-		int64_t my_best_attribute = get_best_attribute_index(
+		best_attribute_t local_max = get_best_attribute(
 			attribute_totals,
-			MIN(dm.s_size * WORD_BITS,
-				dataset.n_attributes - (dm.s_offset * WORD_BITS)));
+			MIN(dm.a_size * WORD_BITS,
+				dataset.n_attributes - (dm.a_offset * WORD_BITS)));
 
 		// My best attribute translates to which global attribute?
-		int64_t my_best_attribute_global = -1;
-		if (my_best_attribute != -1)
+		if (local_max.attribute != -1)
 		{
-			my_best_attribute_global
-				= my_best_attribute + dm.s_offset * WORD_BITS;
+			local_max.attribute += dm.a_offset * WORD_BITS;
 		}
 
-		//	 for (int r = 0; r < size; r++)
+		//	for (int r = 0; r < size; r++)
 		//	{
 		//		if (r == rank)
 		//		{
-		//
-		// printf("[%d] c:%d, mba: %ld, gba: %ld\n", rank,
-		//	   attribute_totals[my_best_attribute], my_best_attribute,
-		//	   my_best_attribute_global);
+		//			printf("[%d] max:%ld, attr: %ld\n", rank, local_max.max,
+		//				   local_max.attribute);
 		//		}
 		//		sleep(1);
 		//	}
 
-		local_max.max
-			= my_best_attribute == -1 ? 0 : attribute_totals[my_best_attribute];
-		local_max.attribute = my_best_attribute_global;
-
 		// Reset best
-		best_max.max	   = 0;
-		best_max.attribute = -1;
-
-		MPI_Op myOp;
-		MPI_Datatype ctype;
-
-		// explain to MPI how type best_attribute is defined
-		MPI_Type_contiguous(2, MPI_LONG, &ctype);
-		MPI_Type_commit(&ctype);
-
-		// create the user-op
-		MPI_Op_create(MPI_get_best_attribute, true, &myOp);
+		best_attribute_t best_max = { .max = 0, .attribute = -1 };
 
 		// At this point, the answer resides on best_max
 		MPI_Allreduce(&local_max, &best_max, 1, ctype, myOp, comm);
@@ -632,11 +634,12 @@ int main(int argc, char** argv)
 		//***************************************************************/
 
 		/**
-		 * Get the totals for the uncovered lines covered by the best attribute.
+		 * Subtract the contribution of the lines covered by the best attribute
+		 * from the totals
 		 */
 		for (uint32_t line = 0; line < dm.n_matrix_lines; line++)
 		{
-			// Is this line covered?
+			// Is this line already covered?
 			// Yes: skip
 			// No. Is it covered by the best attribute?
 			// Yes: add
@@ -661,13 +664,13 @@ int main(int argc, char** argv)
 			// This line was uncovered, but is covered now
 			// Calculate attributes totals
 			word_t* la = dataset.data + dm.steps[line].indexA * dataset.n_words
-				+ dm.s_offset;
+				+ dm.a_offset;
 			word_t* lb = dataset.data + dm.steps[line].indexB * dataset.n_words
-				+ dm.s_offset;
+				+ dm.a_offset;
 
 			uint32_t c_attribute = 0;
 
-			for (uint32_t w = 0; w < dm.s_size; w++)
+			for (uint32_t w = 0; w < dm.a_size; w++)
 			{
 				word_t lxor = la[w] ^ lb[w];
 
@@ -675,22 +678,43 @@ int main(int argc, char** argv)
 				{
 					attribute_totals[c_attribute] -= BIT_CHECK(lxor, bit);
 				}
+
+				//				__m256i lxor_ = _mm256_set1_epi64x(lxor);
+				//				__m256i zeros = _mm256_set1_epi64x(0);
+				//
+				//				for (int8_t bit = WORD_BITS, pos = 0; bit > 0;
+				//					 bit -= 4, pos += 4, c_attribute += 4)
+				//				{
+				//					__m256i mask = _mm256_set_epi64x(
+				//						AND_MASK_TABLE[bit - 1],
+				// AND_MASK_TABLE[bit
+				//- 2], 						AND_MASK_TABLE[bit - 3],
+				// AND_MASK_TABLE[bit - 4]);
+				//					__m256i attr_totals = _mm256_set_epi64x(
+				//						attribute_totals[pos],
+				// attribute_totals[pos
+				//+ 1], 						attribute_totals[pos + 2],
+				// attribute_totals[pos + 3]);
+				//
+				//					__m256i a	 = _mm256_and_si256(lxor_,
+				// mask);
+				//					__m256i ones = _mm256_cmpgt_epi64(a, zeros);
+				//
+				//					attr_totals = _mm256_sub_epi64(attr_totals,
+				// ones);
+				//
+				//					attribute_totals[c_attribute + 0] =
+				// attr_totals[0]; 					attribute_totals[c_attribute
+				// + 1]
+				// =
+				// attr_totals[1]; 					attribute_totals[c_attribute
+				// + 2]
+				// =
+				// attr_totals[2]; 					attribute_totals[c_attribute
+				// + 3] = attr_totals[3];
+				//				}
 			}
 		}
-
-		//	for (int r = 0; r < size; r++)
-		//	{
-		//		if (r == rank)
-		//		{
-		//			printf("totals for rank %d: ", rank);
-		//			for (uint32_t i = 0; i < MIN(10, dataset.n_attributes); i++)
-		//			{
-		//				printf("%d ", attribute_totals[i]);
-		//			}
-		//			printf("\n");
-		//		}
-		//		sleep(1);
-		//	}
 		//***************************************************************/
 		// END UPDATE ATTRIBUTES TOTALS
 		//***************************************************************/

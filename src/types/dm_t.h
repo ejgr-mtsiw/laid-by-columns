@@ -22,18 +22,17 @@ typedef struct dm_t
 	uint32_t n_matrix_lines;
 
 	/**
-	 * The offset in the full matrix
+	 * The first attribute of this process
 	 */
-	uint32_t s_offset;
+	uint32_t a_offset;
 
 	/**
-	 * Number of lines we can generate
+	 * Number of attributes
 	 */
-	uint32_t s_size;
+	uint32_t a_size;
 
 	/**
-	 * Steps to generate s_size lines of the
-	 * disjoint matrix starting at s_offset
+	 * Steps to generate the lines of the disjoint matrix
 	 */
 	steps_t* steps;
 } dm_t;

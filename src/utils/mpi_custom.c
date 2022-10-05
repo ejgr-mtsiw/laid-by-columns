@@ -6,8 +6,11 @@
  ============================================================================
  */
 
-#include "types/best_attribute_t.h"
 #include "utils/mpi_custom.h"
+
+#include "types/best_attribute_t.h"
+
+#include "mpi.h"
 
 void MPI_get_best_attribute(void* in, void* inout, int* len, MPI_Datatype* dptr)
 {

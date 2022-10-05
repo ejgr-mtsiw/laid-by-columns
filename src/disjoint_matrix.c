@@ -36,8 +36,8 @@ uint32_t get_dm_n_lines(const dataset_t* dataset)
 void free_dm(dm_t* dm)
 {
 	dm->n_matrix_lines = 0;
-	dm->s_offset	   = 0;
-	dm->s_size		   = 0;
+	dm->a_offset	   = 0;
+	dm->a_size		   = 0;
 	free(dm->steps);
 	dm->steps = NULL;
 }
