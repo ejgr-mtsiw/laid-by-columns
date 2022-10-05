@@ -572,7 +572,8 @@ int main(int argc, char** argv)
 		 */
 		if (rank == 0)
 		{
-			printf(" - Selected attribute #%ld ", best_max.attribute);
+			printf(" - Selected attribute #%ld, covers %ld lines ",
+				   best_max.attribute, best_max.max);
 
 			TOCK(stdout);
 			TICK;
