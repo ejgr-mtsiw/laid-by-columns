@@ -26,4 +26,11 @@ void MPI_get_best_attribute(void* in, void* inout, int* len, MPI_Datatype* dptr)
 		inouta->max		  = ina->max;
 		inouta->attribute = ina->attribute;
 	}
+	// Right now the program selects the first attribute sent by the
+	// first process to terminate, uncomment next lines to revert to
+	// standard greedy behaviour selecting the lowest attribute
+	//
+	//	else if (ina->max == inouta->max && inouta->attribute > ina->attribute){
+	//		inouta->attribute = ina->attribute;
+	//	}
 }
