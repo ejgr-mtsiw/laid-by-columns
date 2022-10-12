@@ -427,12 +427,8 @@ int main(int argc, char** argv)
 	}
 
 	// Distribute attributes by the processes
-	// Keep them in multiples of N_WORDS_CACHE_LINE words
-	// to maximize cache line usage
-	dm.a_offset
-		= BLOCK_LOW_MULTIPLE(rank, size, dataset.n_words, N_WORDS_CACHE_LINE);
-	dm.a_size
-		= BLOCK_SIZE_MULTIPLE(rank, size, dataset.n_words, N_WORDS_CACHE_LINE);
+	dm.a_offset = BLOCK_LOW(rank, size, dataset.n_words);
+	dm.a_size	= BLOCK_SIZE(rank, size, dataset.n_words);
 
 	// The covered lines and covered attributes are bit arrays
 
