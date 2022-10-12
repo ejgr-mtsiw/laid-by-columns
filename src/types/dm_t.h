@@ -10,8 +10,6 @@
 #ifndef DM_T_H
 #define DM_T_H
 
-#include "../types/steps_t.h"
-
 #include <stdint.h>
 
 typedef struct dm_t
@@ -30,11 +28,6 @@ typedef struct dm_t
 	 * Number of attributes
 	 */
 	uint32_t a_size;
-
-	/**
-	 * Steps to generate the lines of the disjoint matrix
-	 */
-	steps_t* steps;
 } dm_t;
 
 #endif // DM_T_H

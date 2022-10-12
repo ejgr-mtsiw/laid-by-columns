@@ -19,9 +19,4 @@
  */
 uint32_t get_dm_n_lines(const dataset_t* dataset);
 
-/**
- * Free resources
- */
-void free_dm(dm_t* dm);
-
 #endif

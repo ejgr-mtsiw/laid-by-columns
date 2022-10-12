@@ -174,9 +174,6 @@ uint32_t remove_duplicates(dataset_t* dataset)
  */
 oknok_t fill_class_arrays(dataset_t* dataset)
 {
-	// Number of classes
-	uint32_t nc = dataset->n_classes;
-
 	// Number of longs in a line
 	uint32_t n_words = dataset->n_words;
 
@@ -192,22 +189,12 @@ oknok_t fill_class_arrays(dataset_t* dataset)
 	/**
 	 * Array that stores the number of observations for each class
 	 */
-	uint32_t* n_class_obs = (uint32_t*) calloc(nc, sizeof(uint32_t));
-	if (n_class_obs == NULL)
-	{
-		fprintf(stderr, "Error allocating n_observations_per_class\n");
-		return NOK;
-	}
+	uint32_t* n_class_obs = dataset->n_observations_per_class;
 
 	/**
 	 * Matrix that stores the list of observations per class
 	 */
-	uint32_t* class_obs = (uint32_t*) calloc(nc * n_obs, sizeof(uint32_t*));
-	if (class_obs == NULL)
-	{
-		fprintf(stderr, "Error allocating observations_per_class\n");
-		return NOK;
-	}
+	uint32_t* class_obs = dataset->observations_per_class;
 
 	// Current line
 	word_t* line = dataset->data;
@@ -224,8 +211,69 @@ oknok_t fill_class_arrays(dataset_t* dataset)
 		NEXT_LINE(line, n_words);
 	}
 
-	dataset->n_observations_per_class = n_class_obs;
-	dataset->observations_per_class	  = class_obs;
+	return OK;
+}
+
+oknok_t sort_dataset_by_class(dataset_t* dataset)
+{
+	uint32_t nc = dataset->n_classes;
+	uint32_t no = dataset->n_observations;
+	uint32_t nw = dataset->n_words;
+
+	uint32_t* n_opc = dataset->n_observations_per_class;
+	uint32_t* opc	= dataset->observations_per_class;
+
+	uint64_t* data	= dataset->data;
+	uint64_t* line1 = NULL;
+	uint64_t* line2 = NULL;
+
+	uint32_t l		 = 0;
+	uint64_t* buffer = (uint64_t*) malloc(nw * sizeof(uint64_t));
+
+	for (uint32_t c = 0; c < nc; c++)
+	{
+		for (uint32_t o = 0; o < n_opc[c]; o++)
+		{
+			uint32_t ll = c * no + o;
+			if (l != opc[ll])
+			{
+				int32_t pos = -1;
+				for (uint32_t i = 0; i < no * nc; i++)
+				{
+					if (opc[i] == l)
+					{
+						pos = i;
+						break;
+					}
+				}
+
+				if (pos < 0)
+				{
+					line1 = data + l * nw;
+					line2 = data + opc[ll] * nw;
+
+					memcpy(line1, line2, nw * sizeof(uint64_t));
+					opc[ll] = l;
+				}
+				else
+				{
+					line1 = data + l * nw;
+					line2 = data + opc[ll] * nw;
+
+					memcpy(buffer, line1, nw * sizeof(uint64_t));
+					memcpy(line1, line2, nw * sizeof(uint64_t));
+					memcpy(line2, buffer, nw * sizeof(uint64_t));
+
+					uint32_t z = opc[pos];
+					opc[pos]   = opc[ll];
+					opc[ll]	   = z;
+				}
+			}
+			l++;
+		}
+	}
+
+	free(buffer);
 
 	return OK;
 }
