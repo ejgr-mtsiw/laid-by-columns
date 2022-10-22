@@ -19,7 +19,7 @@ typedef struct best_attribute_t
 	/**
 	 * Number of covered lines
 	 */
-	long max;
+	long n_covered_lines;
 } best_attribute_t;
 
 #endif // TYPES_BEST_ATTRIBUTE_T_H

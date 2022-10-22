@@ -21,16 +21,18 @@ void MPI_get_best_attribute(void* in, void* inout, int* len, MPI_Datatype* dptr)
 	best_attribute_t* ina	 = (best_attribute_t*) in;
 	best_attribute_t* inouta = (best_attribute_t*) inout;
 
-	if (ina->max > inouta->max)
+	if (ina->n_covered_lines > inouta->n_covered_lines)
 	{
-		inouta->max		  = ina->max;
-		inouta->attribute = ina->attribute;
+		inouta->n_covered_lines = ina->n_covered_lines;
+		inouta->attribute		= ina->attribute;
 	}
-	// Right now the program selects the first attribute sent by the
-	// first process to terminate, uncomment next lines to revert to
-	// standard greedy behaviour selecting the lowest attribute
+	//// Right now the program selects the first attribute sent by the
+	//// first process to terminate, uncomment next lines to revert to
+	//// standard greedy behaviour selecting the lowest attribute
 	//
-	//	else if (ina->max == inouta->max && inouta->attribute > ina->attribute){
-	//		inouta->attribute = ina->attribute;
-	//	}
+	// else if (ina->n_covered_lines == inouta->n_covered_lines
+	//		 && inouta->attribute > ina->attribute)
+	//{
+	//	inouta->attribute = ina->attribute;
+	//}
 }
