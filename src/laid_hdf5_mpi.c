@@ -152,10 +152,11 @@ int main(int argc, char** argv)
 	/**
 	 * Timing for the full operation
 	 */
-	struct timespec main_tick, main_tock;
+	time_t main_tick = 0, main_tock = 0;
 	if (rank == 0)
 	{
-		clock_gettime(CLOCK_MONOTONIC_RAW, &main_tick);
+		// Timing for the full operation
+		main_tick = time(0);
 	}
 
 	/**
@@ -778,10 +779,8 @@ show_solution:
 	{
 		fprintf(stdout, "All done! ");
 
-		clock_gettime(CLOCK_MONOTONIC_RAW, &main_tock);
-		fprintf(stdout, "[%0.3fs]\n",
-				(main_tock.tv_nsec - main_tick.tv_nsec) / 1000000000.0
-					+ (main_tock.tv_sec - main_tick.tv_sec));
+		main_tock = time(0);
+		fprintf(stdout, "[%lds]\n", main_tock - main_tick);
 	}
 
 	//  wait for everyone
