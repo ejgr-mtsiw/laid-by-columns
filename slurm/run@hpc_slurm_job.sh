@@ -16,7 +16,7 @@ module purge
 # Load software modules. Please check session software for the details
 module load hdf5/1.12.0
 ##module load gcc83/openmpi/4.1.1
-module load clang/openmpi/4.0.3
+##module load clang/openmpi/4.0.3
 
 #Prepare
 exe="../bin/laid-hdf5-mpi"
