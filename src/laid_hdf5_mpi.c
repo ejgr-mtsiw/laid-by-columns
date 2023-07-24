@@ -309,6 +309,10 @@ int main(int argc, char** argv)
 				dataset.n_bits_for_jnsqs);
 		TOCK(stdout);
 
+		/**
+		 * Displayes the estimated disjoint matrix size
+		 * This is the size it would take if it was fully generated
+		 */
 		dm.n_matrix_lines = get_dm_n_lines(&dataset);
 
 		double matrixsize
