@@ -309,6 +309,17 @@ int main(int argc, char** argv)
 				dataset.n_bits_for_jnsqs);
 		TOCK(stdout);
 
+		dm.n_matrix_lines = get_dm_n_lines(&dataset);
+
+		double matrixsize
+			= ((double) dm.n_matrix_lines
+			   * (dataset.n_attributes + dataset.n_bits_for_class))
+			/ (1024 * 1024 * 8);
+
+		fprintf(stdout,
+				"- Estimated disjoint matrix size: %d lines, [%0.2fMB]\n",
+				dm.n_matrix_lines, matrixsize);
+
 		TICK;
 		fprintf(stdout, "- Sorting dataset by class:\n");
 		// Sort by class
@@ -329,8 +340,6 @@ int main(int argc, char** argv)
 	uint32_t toshare[5];
 	if (node_rank == 0)
 	{
-		dm.n_matrix_lines = get_dm_n_lines(&dataset);
-
 		toshare[0] = dataset.n_classes;
 		toshare[1] = dataset.n_attributes;
 		toshare[2] = dataset.n_observations;
@@ -583,10 +592,9 @@ int main(int argc, char** argv)
 		// Reset best
 		best_attribute_t best_max = { .n_covered_lines = 0, .attribute = -1 };
 
-		// At this point, the answer resides on best_max
 		MPI_Allreduce(&local_max, &best_max, 1, ctype, myOp, comm);
-
 		/**
+		 * At this point, the answer resides on best_max
 		 * If the best attribute is -1 we're done here
 		 */
 		if (best_max.attribute == -1)
