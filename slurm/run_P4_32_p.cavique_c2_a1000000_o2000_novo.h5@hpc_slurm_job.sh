@@ -2,14 +2,14 @@
 
 ##CHANGE THIS!
 
-#SBATCH --job-name="run-PROT4-bench_dataset@hpc"
+#SBATCH --job-name="P4-32-p.cavique_c2_a1000000_o2000_novo.h5@hpc"
 ##SBATCH --time=0:10:0
 ##SBATCH --nodes=1
-##SBATCH --ntasks-per-node=16
-#SBATCH --ntasks=16
+##SBATCH --ntasks-per-node=32
+#SBATCH --ntasks=32
 
 DATASET_NAME="dados"
-INPUT_DATASET_FILE="../../datasets/bench_dataset.hd5.original"
+INPUT_DATASET_FILE="../../datasets/p.cavique_c2_a1000000_o2000_novo.h5"
 
 ## MAYBE CHANGE THIS!
 
