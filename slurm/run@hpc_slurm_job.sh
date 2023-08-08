@@ -54,9 +54,9 @@ if [ -f "$INPUT_DATASET_FILE" ]; then
 	if [ -f "$EXE" ]; then
 		chmod u+x $EXE
 
-		echo "time mpiexec -np $SLURM_NTASKS $EXE -d $DATASET_NAME -f $OUTPUT_DATASET_FILE"
+		echo "time mpiexec -np $SLURM_NTASKS $EXE -d $DATASET_NAME -f $INPUT_DATASET_FILE"
 		echo
-		time mpiexec -np $SLURM_NTASKS $EXE -d $DATASET_NAME -f $OUTPUT_DATASET_FILE
+		time mpiexec -np $SLURM_NTASKS $EXE -d $DATASET_NAME -f $INPUT_DATASET_FILE
 	else
 		echo "$EXE not found!"
 	fi
