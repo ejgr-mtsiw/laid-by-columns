@@ -2,7 +2,7 @@
 
 ##CHANGE THIS!
 
-#SBATCH --job-name="P4-1x16-bench_dataset@hpc"
+#SBATCH --job-name="P3-1x16-bench_dataset@hpc"
 
 ##SBATCH --time=0:1:0
 
