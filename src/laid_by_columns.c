@@ -61,7 +61,6 @@
  *  - Sort dataset
  *  - Remove duplicates
  *  - Add jnsqs
- *  - Builds steps for matrix generation
  *
  * All processes
  *  - Apply set covering algorithm
@@ -154,9 +153,7 @@ int main(int argc, char** argv)
 
 	if (rank == ROOT_RANK)
 	{
-		/**
-		 * Timing for the full operation
-		 */
+		// Update start time for the full operation
 		main_tick = time(0);
 	}
 
@@ -244,10 +241,9 @@ int main(int argc, char** argv)
 		// We no longer need the dataset file
 		hdf5_close_dataset(&hdf5_dset);
 
-		TICK;
-
 		// Sort dataset
 		ROOT_SAYS("Sorting dataset: ");
+		TICK;
 
 		/**
 		 * We need to know the number of longs in each line of the dataset
@@ -471,9 +467,6 @@ int main(int argc, char** argv)
 	 * ROOT:
 	 *  - Display list of selected attributes
 	 */
-
-	// printf("[%d] %u ~ %u [%u/%u]\n", rank, dm.first_attribute,
-	// dm.last_attribute, dm.n_attributes, dataset.n_attributes);
 
 	ROOT_SAYS("Applying set covering algorithm:\n");
 	TICK;
