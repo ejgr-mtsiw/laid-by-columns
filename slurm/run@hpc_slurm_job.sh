@@ -2,25 +2,34 @@
 
 ##CHANGE THIS!
 
-#SBATCH --job-name="run-PROT4-bench_dataset@hpc"
-##SBATCH --time=0:10:0
+#SBATCH --job-name="P3-1x16-bench_dataset@hpc"
+
+##SBATCH --time=0:1:0
+
+#SBATCH --ntasks=16
 ##SBATCH --nodes=1
 ##SBATCH --ntasks-per-node=16
-#SBATCH --ntasks=16
 
+DATASET_FILE="bench_dataset.hd5.original"
 DATASET_NAME="dados"
-INPUT_DATASET_FILE="../../datasets/bench_dataset.hd5.original"
+
+## Dataset directories
+DATASET_DIR="../datasets"
+
+## The operation changes the dataset file used so we need to make a copy
+INPUT_DATASET_FILE="$DATASET_DIR/$DATASET_FILE"
 
 ## MAYBE CHANGE THIS!
 
-EXE="../bin/laid-hdf5-mpi"
+EXE="./bin/laid-by-columns"
 
-## DON'T CHANGE THIS!
-
-# Be sure to request the correct partition to avoid the job to be held in the queue, furthermore
-#	on CIRRUS-B (Minho)  choose for example HPC_4_Days
-#	on CIRRUS-A (Lisbon) choose for example hpc
-#SBATCH --partition=hpc
+# Disable warning for mismatched library versions
+# Cirrus.8 has different hdf5 versions on short and hpc partitions
+# even if we load the same module
+# ##Headers are 1.14.0, library is 1.10.5
+#HDF5_DISABLE_VERSION_CHECK=1 # Runs but shows warning message
+HDF5_DISABLE_VERSION_CHECK=2 # Runs without showing the warning message
+export HDF5_DISABLE_VERSION_CHECK
 
 # Used to guarantee that the environment does not have any other loaded module
 module purge
@@ -28,20 +37,32 @@ module purge
 # Load software modules. Please check session software for the details
 module load gcc11/libs/hdf5/1.14.0
 
-# Disable warning for mismatched library versions
-# Cirrus.8 has different hdf5 versions on short and hpc partitions
-# even if we load the same module
-# ##Headers are 1.14.0, library is 1.10.5
-HDF5_DISABLE_VERSION_CHECK=2
-export HDF5_DISABLE_VERSION_CHECK
+# Be sure to request the correct partition to avoid the job to be held in the queue, furthermore
+#	on CIRRUS-B (Minho)  choose for example HPC_4_Days
+#	on CIRRUS-A (Lisbon) choose for example hpc
+#SBATCH --partition=hpc
+
+## DON'T CHANGE THIS!
 
 # Run
-echo "=== Running ==="
-if [ -f "$EXE" ]; then
-    chmod u+x $EXE
-    mpiexec -np $SLURM_NTASKS $EXE -d $DATASET_NAME -f $INPUT_DATASET_FILE
+
+# Move to base dir
+cd ..
+
+if [ -f "$INPUT_DATASET_FILE" ]; then
+	echo "=== Running ==="
+	if [ -f "$EXE" ]; then
+		chmod u+x $EXE
+
+		echo "mpiexec -np $SLURM_NTASKS $EXE -d $DATASET_NAME -f $OUTPUT_DATASET_FILE"
+		echo
+		mpiexec -np $SLURM_NTASKS $EXE -d $DATASET_NAME -f $OUTPUT_DATASET_FILE
+	else
+		echo "$EXE not found!"
+	fi
+
 else
-    echo "$EXE Not found!"
+	echo "Input dataset not found! [$INPUT_DATASET_FILE]"
 fi
 
-echo "Finished with job $SLURM_JOBID"
+echo "Finished with job ID: $SLURM_JOBID"

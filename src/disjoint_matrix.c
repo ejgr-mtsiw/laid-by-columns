@@ -22,11 +22,11 @@ uint32_t get_dm_n_lines(const dataset_t* dataset)
 	uint32_t n_classes	  = dataset->n_classes;
 	uint32_t* n_class_obs = dataset->n_observations_per_class;
 
-	for (uint32_t i = 0; i < n_classes - 1; i++)
+	for (uint32_t class_a = 0; class_a < n_classes - 1; class_a++)
 	{
-		for (uint32_t j = i + 1; j < n_classes; j++)
+		for (uint32_t class_b = class_a + 1; class_b < n_classes; class_b++)
 		{
-			n += n_class_obs[i] * n_class_obs[j];
+			n += n_class_obs[class_a] * n_class_obs[class_b];
 		}
 	}
 

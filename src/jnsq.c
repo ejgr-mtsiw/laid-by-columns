@@ -141,15 +141,5 @@ uint32_t add_jnsqs(dataset_t* dataset)
 					  n_bits_for_class);
 	}
 
-	// Update number of attributes to include the new JNSQs
-	if (max_inconsistency > 0)
-	{
-		// How many bits are needed for jnsq attributes
-		uint8_t n_bits_for_jnsq = ceil(log2(max_inconsistency + 1));
-
-		dataset->n_attributes += n_bits_for_jnsq;
-		dataset->n_bits_for_jnsqs = n_bits_for_jnsq;
-	}
-
 	return max_inconsistency;
 }
