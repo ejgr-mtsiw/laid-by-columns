@@ -1,6 +1,6 @@
 /*
  ============================================================================
- Name        : laid_hdf5_mpi.c
+ Name        : laid_by_columns.c
  Author      : Eduardo Ribeiro
  Description : OpenMPI implementation of the LAID algorithm in C + HDF5
  ============================================================================
