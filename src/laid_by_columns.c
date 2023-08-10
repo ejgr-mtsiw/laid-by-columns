@@ -144,18 +144,12 @@ int main(int argc, char** argv)
 	/**
 	 * Timing for the full operation
 	 */
-	time_t main_tick = 0, main_tock = 0;
+	SETUP_TIMING_GLOBAL;
 
 	/**
 	 * Local timing structures
 	 */
-	time_t tick = 0, tock = 0;
-
-	if (rank == ROOT_RANK)
-	{
-		// Update start time for the full operation
-		main_tick = time(0);
-	}
+	SETUP_TIMING;
 
 	/**
 	 * The dataset
@@ -647,9 +641,6 @@ show_solution:
 			   ((float) solution_size / (float) dataset.n_attributes) * 100);
 
 		fprintf(stdout, "}\nAll done! ");
-
-		main_tock = time(0);
-		fprintf(stdout, "[%lds]\n", main_tock - main_tick);
 	}
 
 	//  wait for everyone
@@ -664,6 +655,8 @@ show_solution:
 	free(best_column);
 	free(covered_lines);
 	free(selected_attributes);
+
+	PRINT_TIMING_GLOBAL;
 
 	/* shut down MPI */
 	MPI_Finalize();
