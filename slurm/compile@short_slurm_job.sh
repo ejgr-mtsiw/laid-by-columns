@@ -1,17 +1,20 @@
 #!/bin/bash
 
-#SBATCH --job-name=P3-compile@short
+#SBATCH --job-name="P3-compile@short"
+
+#SBATCH --output=out.%x.%j
+##SBATCH --error=err.%x.%j
+
 ##SBATCH --time=0:1:0
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
+
+#SBATCH --ntasks=1
+##SBATCH --nodes=1
+##SBATCH --ntasks-per-node=1
 
 # Be sure to request the correct partition to avoid the job to be held in the queue, furthermore
 #	on CIRRUS-B (Minho)  choose for example HPC_4_Days
 #	on CIRRUS-A (Lisbon) choose for example hpc
 #SBATCH --partition=short
-
-#SBATCH --output=out.%x.%j
-#SBATCH --error=err.%x.%j
 
 # Used to guarantee that the environment does not have any other loaded module
 module purge

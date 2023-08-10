@@ -2,21 +2,22 @@
 
 ##CHANGE THIS!
 
-#SBATCH --job-name="P3-1x16-bench_dataset@hpc"
+#SBATCH --job-name="P3-1x1-bench_dataset@hpc"
+
+#SBATCH --output=out.%x.%j
+##SBATCH --error=err.%x.%j
 
 ##SBATCH --time=0:1:0
 
-#SBATCH --ntasks=16
+#SBATCH --ntasks=1
 ##SBATCH --nodes=1
-##SBATCH --ntasks-per-node=16
+##SBATCH --ntasks-per-node=1
 
 DATASET_FILE="bench_dataset.hd5.original"
 DATASET_NAME="dados"
 
 ## Dataset directories
 DATASET_DIR="../datasets"
-
-## The operation changes the dataset file used so we need to make a copy
 INPUT_DATASET_FILE="$DATASET_DIR/$DATASET_FILE"
 
 ## MAYBE CHANGE THIS!
@@ -42,9 +43,6 @@ module load gcc11/libs/hdf5/1.14.0
 #	on CIRRUS-A (Lisbon) choose for example hpc
 #SBATCH --partition=hpc
 
-#SBATCH --output=out.%x.%j
-#SBATCH --error=err.%x.%j
-
 ## DON'T CHANGE THIS!
 
 # Run
@@ -63,7 +61,6 @@ if [ -f "$INPUT_DATASET_FILE" ]; then
 	else
 		echo "$EXE not found!"
 	fi
-
 else
 	echo "Input dataset not found! [$INPUT_DATASET_FILE]"
 fi
