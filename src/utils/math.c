@@ -10,14 +10,14 @@
 
 #include <stdint.h>
 
-uint32_t roundUp(uint32_t numToRound, uint32_t multiple)
+uint64_t roundUp(uint64_t numToRound, uint64_t multiple)
 {
 	if (multiple == 0)
 	{
 		return numToRound;
 	}
 
-	uint32_t remainder = numToRound % multiple;
+	uint64_t remainder = numToRound % multiple;
 	if (remainder == 0)
 	{
 		return numToRound;

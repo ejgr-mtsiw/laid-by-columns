@@ -14,6 +14,6 @@
 #define MAX(a, b) ((a) > (b) ? a : b)
 #define MIN(a, b) ((a) < (b) ? a : b)
 
-uint32_t roundUp(uint32_t numToRound, uint32_t multiple);
+uint64_t roundUp(uint64_t numToRound, uint64_t multiple);
 
 #endif // UTILS_MATH_H

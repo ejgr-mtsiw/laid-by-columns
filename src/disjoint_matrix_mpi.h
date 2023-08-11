@@ -14,6 +14,6 @@
 #include "types/oknok_t.h"
 
 oknok_t get_column(const dataset_t* dataset, const dm_t* dm,
-				   const uint32_t index, word_t* column);
+				   const uint64_t index, word_t* column);
 
 #endif // MPI_DISJOINT_MATRIX_H

@@ -18,16 +18,16 @@
 #include <string.h>
 
 oknok_t get_column(const dataset_t* dataset, const dm_t* dm,
-				   const uint32_t index, word_t* column)
+				   const uint64_t index, word_t* column)
 {
 
-	uint32_t nc	   = dataset->n_classes;
-	uint32_t nobs  = dataset->n_observations;
+	uint64_t nc	   = dataset->n_classes;
+	uint64_t nobs  = dataset->n_observations;
 	word_t** opc   = dataset->observations_per_class;
-	uint32_t* nopc = dataset->n_observations_per_class;
+	uint64_t* nopc = dataset->n_observations_per_class;
 
 	// Which word has the index attribute
-	uint32_t index_word = index / WORD_BITS + 0 * dm->a_offset;
+	uint64_t index_word = index / WORD_BITS + 0 * dm->a_offset;
 
 	// Which bit?
 	uint8_t index_bit = WORD_BITS - (index % WORD_BITS) - 1;
@@ -38,11 +38,11 @@ oknok_t get_column(const dataset_t* dataset, const dm_t* dm,
 	// TODO: I think we can optimize the order of the lines
 	// to optimize cache usage and get faster results
 	// when calculating the attributes totals
-	uint32_t cs = 0;
-	uint32_t ca = 0;
-	uint32_t ia = 0;
-	uint32_t cb = 0;
-	uint32_t ib = 0;
+	uint64_t cs = 0;
+	uint64_t ca = 0;
+	uint64_t ia = 0;
+	uint64_t cb = 0;
+	uint64_t ib = 0;
 
 	// TODO: is there a better way?
 
@@ -65,8 +65,8 @@ oknok_t get_column(const dataset_t* dataset, const dm_t* dm,
 					if (BIT_CHECK(lxor, index_bit))
 					{
 
-						uint32_t w = cs / WORD_BITS;
-						uint32_t b = WORD_BITS - (cs % WORD_BITS) - 1;
+						uint64_t w = cs / WORD_BITS;
+						uint64_t b = WORD_BITS - (cs % WORD_BITS) - 1;
 
 						BIT_SET(column[w], b);
 					}

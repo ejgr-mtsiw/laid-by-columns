@@ -9,6 +9,8 @@
 #ifndef TYPES_BEST_ATTRIBUTE_T_H
 #define TYPES_BEST_ATTRIBUTE_T_H
 
+#include <stdint.h>
+
 typedef struct best_attribute_t
 {
 	/**
@@ -19,7 +21,7 @@ typedef struct best_attribute_t
 	/**
 	 * Number of covered lines
 	 */
-	long n_covered_lines;
+	uint64_t n_covered_lines;
 } best_attribute_t;
 
 #endif // TYPES_BEST_ATTRIBUTE_T_H

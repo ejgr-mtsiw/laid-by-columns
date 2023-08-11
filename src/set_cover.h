@@ -27,8 +27,8 @@
  * correspondent best attribute.
  * Return has index -1 if there are no more attributes available.
  */
-best_attribute_t get_best_attribute(const uint32_t* totals,
-									const uint32_t n_attributes);
+best_attribute_t get_best_attribute(const uint64_t* totals,
+									const uint64_t n_attributes);
 
 oknok_t mark_attribute_as_selected(const int64_t attribute,
 								   word_t* selected_attributes);
@@ -38,13 +38,13 @@ oknok_t mark_attribute_as_selected(const int64_t attribute,
  */
 oknok_t calculate_attribute_totals_add(const dataset_t* dataset, const dm_t* dm,
 									   const word_t* covered_lines,
-									   uint32_t* attribute_totals);
+									   uint64_t* attribute_totals);
 
 oknok_t calculate_attribute_totals_sub(const dataset_t* dataset, const dm_t* dm,
 									   const word_t* covered_lines,
-									   uint32_t* attribute_totals);
+									   uint64_t* attribute_totals);
 
 oknok_t update_covered_lines(const word_t* best_column,
-							 const uint32_t n_words_in_a_column,
+							 const uint64_t n_words_in_a_column,
 							 word_t* covered_lines);
 #endif

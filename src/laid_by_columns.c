@@ -227,10 +227,10 @@ int main(int argc, char** argv)
 		TOCK;
 
 		// Print dataset details
-		ROOT_SHOWS("  Classes = %d", dataset.n_classes);
+		ROOT_SHOWS("  Classes = %lu", dataset.n_classes);
 		ROOT_SHOWS(" [%d bits]\n", dataset.n_bits_for_class);
-		ROOT_SHOWS("  Attributes = %d \n", dataset.n_attributes);
-		ROOT_SHOWS("  Observations = %d \n", dataset.n_observations);
+		ROOT_SHOWS("  Attributes = %lu \n", dataset.n_attributes);
+		ROOT_SHOWS("  Observations = %lu \n", dataset.n_observations);
 
 		// We no longer need the dataset file
 		hdf5_close_dataset(&hdf5_dset);
@@ -253,22 +253,22 @@ int main(int argc, char** argv)
 		ROOT_SAYS("Removing duplicates: ");
 		TICK;
 
-		unsigned int duplicates = remove_duplicates(&dataset);
+		uint64_t duplicates = remove_duplicates(&dataset);
 
 		TOCK;
-		ROOT_SHOWS("  %d duplicate(s) removed\n", duplicates);
+		ROOT_SHOWS("  %lu duplicate(s) removed\n", duplicates);
 	}
 
 	// Share current dataset attributes
-	MPI_Bcast(&(dataset.n_attributes), 1, MPI_UINT32_T, LOCAL_ROOT_RANK,
+	MPI_Bcast(&(dataset.n_attributes), 1, MPI_UINT64_T, LOCAL_ROOT_RANK,
 			  node_comm);
-	MPI_Bcast(&(dataset.n_observations), 1, MPI_UINT32_T, LOCAL_ROOT_RANK,
+	MPI_Bcast(&(dataset.n_observations), 1, MPI_UINT64_T, LOCAL_ROOT_RANK,
 			  node_comm);
-	MPI_Bcast(&(dataset.n_classes), 1, MPI_UINT32_T, LOCAL_ROOT_RANK,
+	MPI_Bcast(&(dataset.n_classes), 1, MPI_UINT64_T, LOCAL_ROOT_RANK,
 			  node_comm);
 	MPI_Bcast(&(dataset.n_bits_for_class), 1, MPI_UINT8_T, LOCAL_ROOT_RANK,
 			  node_comm);
-	MPI_Bcast(&(dataset.n_words), 1, MPI_UINT32_T, LOCAL_ROOT_RANK, node_comm);
+	MPI_Bcast(&(dataset.n_words), 1, MPI_UINT64_T, LOCAL_ROOT_RANK, node_comm);
 
 	// Fill class arrays
 	ROOT_SAYS("Checking classes: ");
@@ -278,7 +278,7 @@ int main(int argc, char** argv)
 	 * Array that stores the number of observations for each class
 	 */
 	dataset.n_observations_per_class
-		= (uint32_t*) calloc(dataset.n_classes, sizeof(uint32_t));
+		= (uint64_t*) calloc(dataset.n_classes, sizeof(uint64_t));
 	assert(dataset.n_observations_per_class != NULL);
 
 	/**
@@ -300,10 +300,10 @@ int main(int argc, char** argv)
 
 	if (rank == ROOT_RANK)
 	{
-		for (unsigned int i = 0; i < dataset.n_classes; i++)
+		for (uint64_t i = 0; i < dataset.n_classes; i++)
 		{
-			ROOT_SHOWS("  Class %d: ", i);
-			ROOT_SHOWS("%d item(s)\n", dataset.n_observations_per_class[i]);
+			ROOT_SHOWS("  Class %lu: ", i);
+			ROOT_SHOWS("%lu item(s)\n", dataset.n_observations_per_class[i]);
 		}
 	}
 
@@ -316,7 +316,7 @@ int main(int argc, char** argv)
 		ROOT_SAYS("Setting up JNSQ attributes: ");
 		TICK;
 
-		uint32_t max_inconsistency = add_jnsqs(&dataset);
+		uint64_t max_inconsistency = add_jnsqs(&dataset);
 
 		// Update number of bits needed for jnsqs
 		if (max_inconsistency > 0)
@@ -328,7 +328,7 @@ int main(int argc, char** argv)
 		}
 
 		TOCK;
-		ROOT_SHOWS("  Max JNSQ: %d", max_inconsistency);
+		ROOT_SHOWS("  Max JNSQ: %lu", max_inconsistency);
 		ROOT_SHOWS(" [%d bits]\n", dataset.n_bits_for_jnsqs);
 	}
 
@@ -396,13 +396,13 @@ int main(int argc, char** argv)
 
 		for (int r = 0; r < size; r++)
 		{
-			uint32_t a_offset = BLOCK_LOW(r, size, dataset.n_words);
-			uint32_t a_size	  = BLOCK_SIZE(r, size, dataset.n_words);
+			uint64_t a_offset = BLOCK_LOW(r, size, dataset.n_words);
+			uint64_t a_size	  = BLOCK_SIZE(r, size, dataset.n_words);
 
-			uint32_t first_attribute = a_offset * WORD_BITS;
-			uint32_t n_attributes
+			uint64_t first_attribute = a_offset * WORD_BITS;
+			uint64_t n_attributes
 				= MIN(a_size * WORD_BITS, dataset.n_attributes);
-			uint32_t last_attribute = dm.first_attribute;
+			uint64_t last_attribute = dm.first_attribute;
 			if (n_attributes > 0)
 			{
 				last_attribute = first_attribute + n_attributes - 1;
@@ -411,7 +411,7 @@ int main(int argc, char** argv)
 			if (a_size > 0)
 			{
 				fprintf(stdout,
-						"    Process %d will manage %u attributes [%u -> %u]\n",
+						"    Process %d will manage %lu attributes [%lu -> %lu]\n",
 						r, n_attributes, first_attribute, last_attribute);
 			}
 			else
@@ -481,8 +481,8 @@ int main(int argc, char** argv)
 	 * The number of attributes is rounded so we can check all bits during
 	 * the attribute totals calculation, avoiding one if in the inner cycle
 	 */
-	uint32_t* attribute_totals
-		= (uint32_t*) calloc(dm.a_size * WORD_BITS, sizeof(uint32_t));
+	uint64_t* attribute_totals
+		= (uint64_t*) calloc(dm.a_size * WORD_BITS, sizeof(uint64_t));
 
 	// The covered lines and selected attributes are bit arrays
 	/**
@@ -520,7 +520,7 @@ int main(int argc, char** argv)
 	/**
 	 * Number of uncovered lines remaining
 	 */
-	uint32_t n_uncovered_lines = dm.n_matrix_lines;
+	uint64_t n_uncovered_lines = dm.n_matrix_lines;
 
 	// Calculate initial values
 	calculate_attribute_totals_add(&dataset, &dm, covered_lines,
@@ -597,7 +597,7 @@ int main(int argc, char** argv)
 		else
 		{
 			// Update best attribute data, leaving only the new covered lines
-			for (uint32_t w = 0; w < dm.n_words_in_a_column; w++)
+			for (uint64_t w = 0; w < dm.n_words_in_a_column; w++)
 			{
 				best_column[w] &= ~covered_lines[w];
 			}
@@ -617,10 +617,10 @@ show_solution:
 	{
 		printf("Solution: { ");
 
-		uint32_t current_attribute = 0;
-		uint32_t solution_size	   = 0;
+		uint64_t current_attribute = 0;
+		uint64_t solution_size	   = 0;
 
-		for (uint32_t w = 0; w < dataset.n_words; w++)
+		for (uint64_t w = 0; w < dataset.n_words; w++)
 		{
 			for (int8_t bit = WORD_BITS - 1;
 				 bit >= 0 && current_attribute < dataset.n_attributes;
@@ -629,17 +629,17 @@ show_solution:
 				if (selected_attributes[w] & AND_MASK_TABLE[bit])
 				{
 					// This attribute is set so it's part of the solution
-					printf("%d ", current_attribute);
+					printf("%lu ", current_attribute);
 					solution_size++;
 				}
 			}
 		}
 
-		printf("}\nSolution has %d attributes: %d / %d = %3.4f%%\n",
+		printf("}\nSolution has %lu attributes: %lu / %lu = %3.4f%%\n",
 			   solution_size, solution_size, dataset.n_attributes,
 			   ((float) solution_size / (float) dataset.n_attributes) * 100);
 
-		fprintf(stdout, "}\nAll done! ");
+		fprintf(stdout, "\nAll done! ");
 	}
 
 	//  wait for everyone

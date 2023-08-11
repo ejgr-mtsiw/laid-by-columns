@@ -27,27 +27,27 @@ typedef struct dm_t
 	/**
 	 * The number of attributes in the partial disjoint matrix
 	 */
-	uint32_t n_attributes;
+	uint64_t n_attributes;
 
 	/**
 	 * The first attribute of this process
 	 */
-	uint32_t first_attribute;
+	uint64_t first_attribute;
 
 	/**
 	 * The last attribute os this process
 	 */
-	uint32_t last_attribute;
+	uint64_t last_attribute;
 
 	/**
 	 * The first attribute we can generate
 	 */
-	uint32_t a_offset;
+	uint64_t a_offset;
 
 	/**
 	 * Number of attributes we can generate
 	 */
-	uint32_t a_size;
+	uint64_t a_size;
 } dm_t;
 
 #endif // DM_T_H
