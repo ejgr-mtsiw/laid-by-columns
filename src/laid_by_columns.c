@@ -388,12 +388,11 @@ int main(int argc, char** argv)
 
 	if (rank == ROOT_RANK)
 	{
-		ROOT_SHOWS("  Number of lines in the disjoint matrix: %d\n",
-				   dm.n_matrix_lines);
+		ROOT_SHOWS("  Number of lines in the disjoint matrix: %lu\n",				   dm.n_matrix_lines);
 
-		double matrix_size = ((double) dm.n_matrix_lines * dataset.n_attributes)
-			/ (1024.0 * 1024 * 1024 * 8);
-		ROOT_SHOWS("  Estimated disjoint matrix size: %3.2fGB\n", matrix_size);
+		double matrix_size = dm.n_matrix_lines * dataset.n_attributes;
+		matrix_size /= (1024.0 * 1024.0 * 1024.0 * 8.0);
+		ROOT_SHOWS("  Estimated disjoint matrix size: %0.2lfGB\n", matrix_size);
 
 		for (int r = 0; r < size; r++)
 		{

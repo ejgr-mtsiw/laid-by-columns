@@ -14,10 +14,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-uint32_t get_dm_n_lines(const dataset_t* dataset)
+uint64_t get_dm_n_lines(const dataset_t* dataset)
 {
 	// Calculate number of lines for the matrix
-	uint32_t n = 0;
+	uint64_t n = 0;
 
 	uint32_t n_classes	  = dataset->n_classes;
 	uint32_t* n_class_obs = dataset->n_observations_per_class;
@@ -26,7 +26,7 @@ uint32_t get_dm_n_lines(const dataset_t* dataset)
 	{
 		for (uint32_t class_b = class_a + 1; class_b < n_classes; class_b++)
 		{
-			n += n_class_obs[class_a] * n_class_obs[class_b];
+			n += (uint64_t)n_class_obs[class_a] * (uint64_t)n_class_obs[class_b];
 		}
 	}
 

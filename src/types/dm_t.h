@@ -17,12 +17,12 @@ typedef struct dm_t
 	/**
 	 * The number of lines of the full matrix
 	 */
-	uint32_t n_matrix_lines;
+	uint64_t n_matrix_lines;
 
 	/**
 	 * The number of words to store a full column of the matrix
 	 */
-	uint32_t n_words_in_a_column;
+	uint64_t n_words_in_a_column;
 
 	/**
 	 * The number of attributes in the partial disjoint matrix
