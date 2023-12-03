@@ -16,7 +16,7 @@
 #include <math.h>
 #include <stdint.h>
 
-#include <stdio.h>
+//#include <stdio.h>
 
 void set_jnsq_bits(word_t* line, uint64_t inconsistency,
 				   const uint64_t n_attributes, const uint64_t n_words,

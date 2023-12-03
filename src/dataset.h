@@ -82,4 +82,5 @@ void free_dataset(dataset_t* dataset);
 void print_dataset(dataset_t * dataset, uint64_t n_attributes, uint64_t n_observations);
 
 void print_line(word_t*line,uint64_t n_words, uint64_t n_attributes);
+
 #endif

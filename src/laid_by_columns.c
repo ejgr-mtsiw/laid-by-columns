@@ -432,7 +432,8 @@ int main(int argc, char** argv)
 
 				TOCK;
 
-				print_dataset(&dataset, dataset.n_attributes, dataset.n_observations);	}
+				print_dataset(&dataset, dataset.n_attributes, dataset.n_observations);
+	}
 
 	// Must make sure the dataset is filled before proceeding
 		MPI_Barrier(node_comm);
@@ -647,11 +648,14 @@ int main(int argc, char** argv)
 	// Calculate initial values
 	calculate_attribute_totals_add(&dataset, &dm, covered_lines, attribute_totals);
 
-//	for (uint64_t a=0;a<dm.n_attributes; a++){
+//	if (rank==ROOT_RANK){
+//	for (uint64_t a=0;a<20; a++){
 //				printf("%lu ", attribute_totals[a]);
 //			}
 //
 //			printf("\n");
+//	}
+//			goto end;
 
 	while (true)
 	{
@@ -737,8 +741,7 @@ all_reduce:
 										   attribute_totals);
 
 			// Update covered lines
-			update_covered_lines(best_column, dm.n_words_in_a_column,
-								 covered_lines);
+			update_covered_lines(best_column, dm.n_words_in_a_column, covered_lines);
 		}
 	}
 

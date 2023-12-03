@@ -32,14 +32,6 @@ void set_jnsq_bits(word_t* line, uint64_t inconsistency,
 				   const uint8_t n_bits_for_class);
 
 /**
- * Compares 2 lines and updates jnsq on to_update if needed and updates
- * inconsistency level
- */
-void update_jnsq(word_t* to_update, const word_t* to_compare,
-				 uint64_t* inconsistency, const uint64_t n_attributes,
-				 const uint64_t n_words, const uint8_t n_bits_for_class);
-
-/**
  * Adds the JNSQs attributes to the dataset.
  * Returns max inconsistency found
  */

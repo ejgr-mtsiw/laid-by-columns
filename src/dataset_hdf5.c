@@ -93,20 +93,20 @@ oknok_t hdf5_read_dataset_attributes(hid_t dataset_id, dataset_t* dataset)
 	dataset->n_classes		  = n_classes;
 	dataset->n_observations	  = n_observations;
 
-		// Bits needed for attributes and jnsq (max)
-			uint64_t total_bits = dataset->n_attributes + dataset->n_bits_for_class;
+	// Bits needed for attributes and jnsq (max)
+	uint64_t total_bits = dataset->n_attributes + dataset->n_bits_for_class;
 
-			// Round up to the nearest multiple of 512
-			// 512 bits = 1 cache line
-			total_bits=roundUp(total_bits, 512);
+	// Round up to the nearest multiple of 512
+	// 512 bits = 1 cache line
+	total_bits=roundUp(total_bits, 512);
 
-			// How many words (64 bits) will be allocated
-			uint64_t n_words = total_bits / WORD_BITS + (total_bits % WORD_BITS != 0);
+	// How many words (64 bits) will be allocated
+	uint64_t n_words = total_bits / WORD_BITS + (total_bits % WORD_BITS != 0);
 
-			// Add one word for the line class
-			n_words++;
+	// Add one word for the line class
+	n_words++;
 
-			dataset->n_words=n_words;
+	dataset->n_words=n_words;
 
 	return OK;
 }

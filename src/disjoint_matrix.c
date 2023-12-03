@@ -9,11 +9,9 @@
 #include "disjoint_matrix.h"
 
 #include "types/dataset_t.h"
-#include "types/dm_t.h"
 #include "types/line_class_t.h"
 
 #include <stdint.h>
-#include <stdlib.h>
 
 uint64_t get_dm_n_lines(const dataset_t* dataset)
 {

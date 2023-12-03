@@ -22,8 +22,7 @@
 void init_dataset(dataset_t* dataset)
 {
 	dataset->data					  = NULL;
-	dataset->n_observations_per_class = NULL;
-	dataset->observations_per_class	  = NULL;
+	dataset->classes	  = NULL;
 	dataset->n_attributes			  = 0;
 	dataset->n_bits_for_class		  = 0;
 	dataset->n_bits_for_jnsqs		  = 0;
@@ -235,12 +234,10 @@ oknok_t fill_class_arrays(dataset_t* dataset)
 void free_dataset(dataset_t* dataset)
 {
 	free(dataset->data);
-	free(dataset->n_observations_per_class);
-	free(dataset->observations_per_class);
+	free(dataset->classes);
 
 	dataset->data					  = NULL;
-	dataset->n_observations_per_class = NULL;
-	dataset->observations_per_class	  = NULL;
+	dataset->classes = NULL;
 }
 
 void print_dataset(dataset_t * dataset, uint64_t n_attributes, uint64_t n_observations){

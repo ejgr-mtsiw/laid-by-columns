@@ -10,7 +10,6 @@
 #define DISJOINT_MATRIX_H
 
 #include "types/dataset_t.h"
-#include "types/dm_t.h"
 
 #include <stdint.h>
 

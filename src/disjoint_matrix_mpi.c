@@ -24,7 +24,6 @@ oknok_t get_column(const dataset_t* dataset, const dm_t* dm,
 
 	uint64_t nw = dataset->n_words;
 	uint64_t nc	   = dataset->n_classes;
-	//uint64_t nobs  = dataset->n_observations;
 	line_class_t*classes = dataset->classes;
 
 	// Which word has the index attribute

@@ -55,18 +55,6 @@ typedef struct dataset_t
 	 * Array with class info
 	 */
 	line_class_t* classes;
-
-	/**
-	 * Array with number of observations per class
-	 */
-	uint64_t* n_observations_per_class;
-
-	/**
-	 * Array with pointers for each observation per class.
-	 * They reference lines in *data
-	 */
-	word_t** observations_per_class;
-
 } dataset_t;
 
 #endif // DATASET_T_H
