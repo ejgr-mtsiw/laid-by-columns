@@ -480,8 +480,7 @@ int main(int argc, char** argv)
 	 * Bit array with the information about the lines covered (1) or not (0) by
 	 * the current best attribute
 	 */
-	word_t* best_column
-		= (word_t*) calloc(dm.n_words_in_a_column, sizeof(word_t));
+	word_t* best_column = (word_t*) calloc(dm.n_words_in_a_column, sizeof(word_t));
 
 	/**
 	 * The number of attributes is rounded so we can check all bits during
@@ -591,31 +590,31 @@ int main(int argc, char** argv)
 		 * contribution of the covered lines.
 		 * The objetive is to reduce the number of lines generated.
 		 */
-		if (n_uncovered_lines < best_max.n_covered_lines)
-		{
+//		if (n_uncovered_lines < best_max.n_covered_lines)
+//		{
 
 			// Update covered lines
 			update_covered_lines(best_column, dm.n_words_in_a_column, covered_lines);
 
 			// Update attributes totals
 			calculate_attribute_totals_add(&dataset, &dm, covered_lines, attribute_totals);
-		}
-		else
-		{
-			// Update best attribute data, leaving only the new covered lines
-			for (uint64_t w = 0; w < dm.n_words_in_a_column; w++)
-			{
-				best_column[w] &= ~covered_lines[w];
-			}
-
-			// Update attributes totals
-			calculate_attribute_totals_sub(&dataset, &dm, best_column,
-										   attribute_totals);
-
-			// Update covered lines
-			update_covered_lines(best_column, dm.n_words_in_a_column,
-								 covered_lines);
-		}
+//		}
+//		else
+//		{
+//			// Update best attribute data, leaving only the new covered lines
+//			for (uint64_t w = 0; w < dm.n_words_in_a_column; w++)
+//			{
+//				best_column[w] &= ~covered_lines[w];
+//			}
+//
+//			// Update attributes totals
+//			calculate_attribute_totals_sub(&dataset, &dm, best_column,
+//										   attribute_totals);
+//
+//			// Update covered lines
+//			update_covered_lines(best_column, dm.n_words_in_a_column,
+//								 covered_lines);
+//		}
 	}
 
 show_solution:

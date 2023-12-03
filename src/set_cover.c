@@ -16,6 +16,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <stdio.h>
 
 best_attribute_t get_best_attribute(const uint64_t* totals,
 									const uint64_t n_attributes)
@@ -62,42 +63,50 @@ oknok_t calculate_attribute_totals_add(const dataset_t* dataset, const dm_t* dm,
 	uint64_t nc	   = dataset->n_classes;
 	line_class_t*classes = dataset->classes;
 
-	uint64_t cs = 0;
+	uint64_t cl = 0;
 	uint64_t ca = 0;
 	uint64_t ia = 0;
 	uint64_t cb = 0;
 	uint64_t ib = 0;
 
+//	printf("nw %lu, nc %lu, as %lu, ao %lu\n", nw, nc, dm->a_size, dm->a_offset);
+
 	// Reset totals
 	memset(attribute_totals, 0, dm->a_size * WORD_BITS * sizeof(uint64_t));
 
-	for (ca = 0; ca < nc - 1; ca++)
+	for (uint64_t ww = dm->a_offset; ww < dm->a_offset + dm->a_size; ww+=8)
 	{
-		for (cb = ca + 1; cb < nc; cb++)
+		cl=0;
+		for (ca = 0; ca < nc - 1; ca++)
 		{
-			for (ia = 0; ia < classes[ca].n_observations; ia++)
+			for (cb = ca + 1; cb < nc; cb++)
 			{
-				for (ib = 0; ib < classes[cb].n_observations; ib++, cs++)
+				for (ia = 0; ia < classes[ca].n_observations; ia++)
 				{
-					uint64_t w = cs / WORD_BITS;
-					uint8_t b  = WORD_BITS - (cs % WORD_BITS) - 1;
-
-					if (!BIT_CHECK(covered_lines[w], b))
+					for (ib = 0; ib < classes[cb].n_observations; ib++, cl++)
 					{
-						// This line is not yet covered
 
-						uint64_t c_attribute = 0;
-						for (uint64_t ww = dm->a_offset; ww < dm->a_offset + dm->a_size; ww++)
+						uint64_t w = cl / WORD_BITS;
+						uint8_t b  = WORD_BITS - (cl % WORD_BITS) - 1;
+
+						if (!BIT_CHECK(covered_lines[w], b))
 						{
-							// Generate next line
+							// This line is not yet covered
+							// Generate the partial line
 							word_t* la = classes[ca].first_observation_address + ia*nw;
 							word_t* lb = classes[cb].first_observation_address + ib*nw;
 
-							word_t attributes = la[ww] ^ lb[ww];
+							uint64_t c_attribute = (ww-dm->a_offset)*WORD_BITS;
+							//printf ("cl %lu, ww %lu, ca %lu\n", cl, ww, c_attribute);
 
-							for (int8_t bit = WORD_BITS - 1; bit >= 0; bit--, c_attribute++)
+							for (uint64_t www = ww; www < ww+8; www++)
 							{
-								attribute_totals[c_attribute] += BIT_CHECK(attributes, bit);
+								word_t attributes = la[www] ^ lb[www];
+
+								for (int8_t bit = WORD_BITS - 1; bit >= 0; bit--, c_attribute++)
+								{
+									attribute_totals[c_attribute] += BIT_CHECK(attributes, bit);
+								}
 							}
 						}
 					}
@@ -118,48 +127,52 @@ oknok_t calculate_attribute_totals_sub(const dataset_t* dataset, const dm_t* dm,
 	uint64_t nc	   = dataset->n_classes;
 	line_class_t*classes = dataset->classes;
 
-	uint64_t cs = 0;
+	uint64_t cl = 0;
 	uint64_t ca = 0;
 	uint64_t ia = 0;
 	uint64_t cb = 0;
 	uint64_t ib = 0;
 
-	for (ca = 0; ca < nc - 1; ca++)
-	{
-		for (cb = ca + 1; cb < nc; cb++)
+	for (uint64_t ww = dm->a_offset; ww < dm->a_offset + dm->a_size; ww+=8)
 		{
-			for (ia = 0; ia < classes[ca].n_observations; ia++)
+			cl=0;
+			for (ca = 0; ca < nc - 1; ca++)
 			{
-				for (ib = 0; ib < classes[cb].n_observations; ib++, cs++)
+				for (cb = ca + 1; cb < nc; cb++)
 				{
-					uint64_t w = cs / WORD_BITS;
-					uint8_t b  = WORD_BITS - (cs % WORD_BITS) - 1;
-
-					if (!BIT_CHECK(covered_lines[w], b))
+					for (ia = 0; ia < classes[ca].n_observations; ia++)
 					{
-						// This line is not yet covered
-
-						uint64_t c_attribute = 0;
-						for (uint64_t ww = dm->a_offset; ww < dm->a_offset + dm->a_size; ww++)
+						for (ib = 0; ib < classes[cb].n_observations; ib++, cl++)
 						{
-							// Generate next line
-							word_t* la = classes[ca].first_observation_address + ia*nw;
-							word_t* lb = classes[cb].first_observation_address + ib*nw;
 
-							word_t attributes = la[ww] ^ lb[ww];
+							uint64_t w = cl / WORD_BITS;
+							uint8_t b  = WORD_BITS - (cl % WORD_BITS) - 1;
 
-							for (int8_t bit = WORD_BITS - 1; bit >= 0;
-								 bit--, c_attribute++)
+							if (!BIT_CHECK(covered_lines[w], b))
 							{
-								attribute_totals[c_attribute]
-									-= BIT_CHECK(attributes, bit);
+								// This line is not yet covered
+								// Generate the partial line
+								word_t* la = classes[ca].first_observation_address + ia*nw;
+								word_t* lb = classes[cb].first_observation_address + ib*nw;
+
+								uint64_t c_attribute = (ww-dm->a_offset)*WORD_BITS;
+								//printf ("cl %lu, ww %lu, ca %lu\n", cl, ww, c_attribute);
+
+								for (uint64_t www = ww; www < ww+8; www++)
+								{
+									word_t attributes = la[www] ^ lb[www];
+
+									for (int8_t bit = WORD_BITS - 1; bit >= 0; bit--, c_attribute++)
+									{
+										attribute_totals[c_attribute] -= BIT_CHECK(attributes, bit);
+									}
+								}
 							}
 						}
 					}
 				}
 			}
 		}
-	}
 
 	return OK;
 }
