@@ -9,6 +9,7 @@
 #include "dataset.h"
 
 #include "types/dataset_t.h"
+#include "types/line_class_t.h"
 #include "types/oknok_t.h"
 #include "types/word_t.h"
 #include "utils/bit.h"
@@ -77,9 +78,9 @@ int compare_lines_extra(const void* a, const void* b, void* n_words)
 	word_t va		  = 0;
 	word_t vb		  = 0;
 
-	uint64_t n_l = *(uint64_t*) n_words;
+	uint64_t nw = *(uint64_t*) n_words;
 
-	for (uint64_t i = 0; i < n_l; i++)
+	for (uint64_t i = 0; i < nw; i++)
 	{
 		va = ula[i];
 		vb = ulb[i];
@@ -94,6 +95,27 @@ int compare_lines_extra(const void* a, const void* b, void* n_words)
 			return -1;
 		}
 	}
+
+	return 0;
+}
+
+int compare_lines_by_class(const void* a, const void* b, void* n_words)
+{
+	uint64_t nw = *(uint64_t*) n_words;
+	const word_t* ula = (const word_t*) a;
+	const word_t* ulb = (const word_t*) b;
+	word_t va		  = ula[nw-1];
+	word_t vb		  = ulb[nw-1];
+
+		if (va > vb)
+		{
+			return 1;
+		}
+
+		if (va < vb)
+		{
+			return -1;
+		}
 
 	return 0;
 }
@@ -126,8 +148,7 @@ bool has_same_attributes(const word_t* line_a, const word_t* line_b,
 	}
 
 	// We need to check last word
-	word_t last_word = get_bits((line_a[c_word] ^ line_b[c_word]),
-								WORD_BITS - remaining, remaining);
+	word_t last_word = get_bits((line_a[c_word] ^ line_b[c_word]), WORD_BITS - remaining, remaining);
 
 	return (last_word == 0);
 }
@@ -166,19 +187,25 @@ oknok_t fill_class_arrays(dataset_t* dataset)
 	uint64_t n_words = dataset->n_words;
 
 	// Number of attributes
-	uint64_t n_attributes = dataset->n_attributes;
+	//uint64_t n_attributes = dataset->n_attributes;
 
 	// Number of observations
 	uint64_t n_obs = dataset->n_observations;
 
+	// Number of classes
+	//uint64_t n_classes = dataset->n_classes;
+
 	// Number of bits needed to store class
-	uint8_t n_bits_for_class = dataset->n_bits_for_class;
+	//uint8_t n_bits_for_class = dataset->n_bits_for_class;
+
+	// Array that stores class info
+	line_class_t* classes = dataset->classes;
 
 	// Array that stores the number of observations for each class
-	uint64_t* n_class_obs = dataset->n_observations_per_class;
+	//uint64_t* n_class_obs = dataset->n_observations_per_class;
 
 	// Matrix that stores the list of observations per class
-	word_t** class_obs = dataset->observations_per_class;
+	//word_t** class_obs = dataset->observations_per_class;
 
 	// Current line
 	word_t* line = dataset->data;
@@ -186,11 +213,18 @@ oknok_t fill_class_arrays(dataset_t* dataset)
 	// This is the current index
 	for (uint64_t i = 0; i < n_obs; i++)
 	{
-		uint64_t lc = get_class(line, n_attributes, n_words, n_bits_for_class);
+		uint64_t lc = line[n_words-1]; // get_class(line, n_attributes, n_words, n_bits_for_class);
 
-		class_obs[lc * n_obs + n_class_obs[lc]] = line;
+		if (classes[lc].n_observations==0) {
+			// First observation
+			classes[lc].first_observation_address=line;
+		}
 
-		n_class_obs[lc]++;
+		classes[lc].n_observations++;
+
+		//class_obs[lc * n_obs + n_class_obs[lc]] = line;
+
+		//n_class_obs[lc]++;
 
 		NEXT_LINE(line, n_words);
 	}
@@ -207,4 +241,30 @@ void free_dataset(dataset_t* dataset)
 	dataset->data					  = NULL;
 	dataset->n_observations_per_class = NULL;
 	dataset->observations_per_class	  = NULL;
+}
+
+void print_dataset(dataset_t * dataset, uint64_t n_attributes, uint64_t n_observations){
+
+	return;
+
+	for (uint64_t l=0;l<n_observations;l++){
+				printf("[%lu] ",l);
+				print_line(dataset->data+l*dataset->n_words, dataset->n_words, n_attributes);
+			}
+}
+
+void print_line(word_t*line,uint64_t n_words, uint64_t n_attributes){
+					uint64_t na=0;
+					for (uint64_t i=0;i<n_words && na<n_attributes;i++){
+						word_t w = line[i];
+						for (int8_t bit=WORD_BITS-1;bit>=0 && na < n_attributes;bit--,na++){
+							if (BIT_CHECK(w, bit)) {
+							printf("1 ");
+							} else {
+								printf("0 ");
+							}
+						}
+					}
+					printf(" [%lu]", line[n_words-1]);
+					printf("\n");
 }

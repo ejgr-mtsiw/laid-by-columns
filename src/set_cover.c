@@ -58,10 +58,9 @@ oknok_t calculate_attribute_totals_add(const dataset_t* dataset, const dm_t* dm,
 									   uint64_t* attribute_totals)
 {
 
+	uint64_t nw = dataset->n_words;
 	uint64_t nc	   = dataset->n_classes;
-	uint64_t nobs  = dataset->n_observations;
-	word_t** opc   = dataset->observations_per_class;
-	uint64_t* nopc = dataset->n_observations_per_class;
+	line_class_t*classes = dataset->classes;
 
 	uint64_t cs = 0;
 	uint64_t ca = 0;
@@ -76,9 +75,9 @@ oknok_t calculate_attribute_totals_add(const dataset_t* dataset, const dm_t* dm,
 	{
 		for (cb = ca + 1; cb < nc; cb++)
 		{
-			for (ia = 0; ia < nopc[ca]; ia++)
+			for (ia = 0; ia < classes[ca].n_observations; ia++)
 			{
-				for (ib = 0; ib < nopc[cb]; ib++, cs++)
+				for (ib = 0; ib < classes[cb].n_observations; ib++, cs++)
 				{
 					uint64_t w = cs / WORD_BITS;
 					uint8_t b  = WORD_BITS - (cs % WORD_BITS) - 1;
@@ -88,23 +87,17 @@ oknok_t calculate_attribute_totals_add(const dataset_t* dataset, const dm_t* dm,
 						// This line is not yet covered
 
 						uint64_t c_attribute = 0;
-						for (uint64_t ww = dm->a_offset;
-							 ww < dm->a_offset + dm->a_size; ww++)
+						for (uint64_t ww = dm->a_offset; ww < dm->a_offset + dm->a_size; ww++)
 						{
 							// Generate next line
-							word_t** bla = opc + ca * nobs;
-							word_t** blb = opc + cb * nobs;
-
-							word_t* la = *(bla + ia);
-							word_t* lb = *(blb + ib);
+							word_t* la = classes[ca].first_observation_address + ia*nw;
+							word_t* lb = classes[cb].first_observation_address + ib*nw;
 
 							word_t attributes = la[ww] ^ lb[ww];
 
-							for (int8_t bit = WORD_BITS - 1; bit >= 0;
-								 bit--, c_attribute++)
+							for (int8_t bit = WORD_BITS - 1; bit >= 0; bit--, c_attribute++)
 							{
-								attribute_totals[c_attribute]
-									+= BIT_CHECK(attributes, bit);
+								attribute_totals[c_attribute] += BIT_CHECK(attributes, bit);
 							}
 						}
 					}
@@ -121,10 +114,9 @@ oknok_t calculate_attribute_totals_sub(const dataset_t* dataset, const dm_t* dm,
 									   uint64_t* attribute_totals)
 {
 
+	uint64_t nw = dataset->n_words;
 	uint64_t nc	   = dataset->n_classes;
-	uint64_t nobs  = dataset->n_observations;
-	word_t** opc   = dataset->observations_per_class;
-	uint64_t* nopc = dataset->n_observations_per_class;
+	line_class_t*classes = dataset->classes;
 
 	uint64_t cs = 0;
 	uint64_t ca = 0;
@@ -136,27 +128,23 @@ oknok_t calculate_attribute_totals_sub(const dataset_t* dataset, const dm_t* dm,
 	{
 		for (cb = ca + 1; cb < nc; cb++)
 		{
-			for (ia = 0; ia < nopc[ca]; ia++)
+			for (ia = 0; ia < classes[ca].n_observations; ia++)
 			{
-				for (ib = 0; ib < nopc[cb]; ib++, cs++)
+				for (ib = 0; ib < classes[cb].n_observations; ib++, cs++)
 				{
 					uint64_t w = cs / WORD_BITS;
 					uint8_t b  = WORD_BITS - (cs % WORD_BITS) - 1;
 
-					if (BIT_CHECK(covered_lines[w], b))
+					if (!BIT_CHECK(covered_lines[w], b))
 					{
-						// This line wasn't covered but it is now
+						// This line is not yet covered
 
 						uint64_t c_attribute = 0;
-						for (uint64_t ww = dm->a_offset;
-							 ww < dm->a_offset + dm->a_size; ww++)
+						for (uint64_t ww = dm->a_offset; ww < dm->a_offset + dm->a_size; ww++)
 						{
 							// Generate next line
-							word_t** bla = opc + ca * nobs;
-							word_t** blb = opc + cb * nobs;
-
-							word_t* la = *(bla + ia);
-							word_t* lb = *(blb + ib);
+							word_t* la = classes[ca].first_observation_address + ia*nw;
+							word_t* lb = classes[cb].first_observation_address + ib*nw;
 
 							word_t attributes = la[ww] ^ lb[ww];
 

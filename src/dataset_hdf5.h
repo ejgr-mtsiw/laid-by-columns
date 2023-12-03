@@ -62,4 +62,19 @@ void hdf5_get_dataset_dimensions(hid_t dataset_id, hsize_t* dataset_dimensions);
  */
 void hdf5_close_dataset(dataset_hdf5_t* dataset);
 
+oknok_t hdf5_read_dataset_data_by_line(dataset_hdf5_t* hdf5_dataset, dataset_t *dataset);
+
+/**
+ * Retrieves a line from the dataset
+ */
+oknok_t hdf5_read_line(const dataset_hdf5_t* dataset, const uint32_t index,
+					   const uint32_t n_words, word_t* line);
+
+/**
+ * Reads n lines from the dataset
+ */
+oknok_t hdf5_read_lines(const dataset_hdf5_t* dataset, const uint32_t index,
+						const uint32_t n_words, const uint32_t n_lines,
+						word_t* lines);
+
 #endif

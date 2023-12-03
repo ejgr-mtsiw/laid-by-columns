@@ -9,7 +9,8 @@
 #ifndef DATASET_T_H
 #define DATASET_T_H
 
-#include "../types/word_t.h"
+#include "word_t.h"
+#include "line_class_t.h"
 
 #include <stdint.h>
 
@@ -49,6 +50,11 @@ typedef struct dataset_t
 	 * Dataset data
 	 */
 	word_t* data;
+
+	/**
+	 * Array with class info
+	 */
+	line_class_t* classes;
 
 	/**
 	 * Array with number of observations per class

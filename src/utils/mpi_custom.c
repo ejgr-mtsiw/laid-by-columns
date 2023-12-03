@@ -30,9 +30,9 @@ void MPI_get_best_attribute(void* in, void* inout, int* len, MPI_Datatype* dptr)
 	//// first process to terminate, uncomment next lines to revert to
 	//// standard greedy behaviour selecting the lowest attribute
 	//
-	// else if (ina->n_covered_lines == inouta->n_covered_lines
-	//		 && inouta->attribute > ina->attribute)
-	//{
-	//	inouta->attribute = ina->attribute;
-	//}
+	 else if (ina->n_covered_lines == inouta->n_covered_lines
+			 && inouta->attribute > ina->attribute)
+	{
+		inouta->attribute = ina->attribute;
+	}
 }

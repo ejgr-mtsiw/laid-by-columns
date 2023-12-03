@@ -183,8 +183,23 @@ int main(int argc, char** argv)
 			return EXIT_FAILURE;
 		}
 
-		dataset.n_observations = hdf5_dset.dimensions[0];
-		dataset.n_words		   = hdf5_dset.dimensions[1];
+		// Load dataset attributes
+		hdf5_read_dataset_attributes(hdf5_dset.dataset_id, &dataset);
+
+//		// Bits needed for attributes and jnsq (max)
+//		uint32_t total_bits = dataset.n_attributes + dataset.n_bits_for_class;
+//
+//		// Round up to the nearest multiple of 512
+//		// 512 bits = 1 cache line
+//		roundUp(total_bits, 512);
+//
+//		// How many words (64 bits) will be allocated
+//		uint64_t n_words = total_bits / WORD_BITS + (total_bits % WORD_BITS != 0);
+//
+//		// Add one word for the line class
+//		n_words++;
+//
+//		dataset.n_words=n_words;
 
 		shared_data_size = dataset.n_observations * dataset.n_words;
 	}
@@ -218,11 +233,8 @@ int main(int argc, char** argv)
 
 	if (node_rank == LOCAL_ROOT_RANK)
 	{
-		// Load dataset attributes
-		hdf5_read_dataset_attributes(hdf5_dset.dataset_id, &dataset);
-
 		// Load dataset data
-		hdf5_read_dataset_data(hdf5_dset.dataset_id, dataset.data);
+		hdf5_read_dataset_data_by_line(&hdf5_dset, &dataset);
 
 		TOCK;
 
@@ -234,6 +246,8 @@ int main(int argc, char** argv)
 
 		// We no longer need the dataset file
 		hdf5_close_dataset(&hdf5_dset);
+
+		print_dataset(&dataset, dataset.n_attributes, dataset.n_observations);
 
 		// Sort dataset
 		ROOT_SAYS("Sorting dataset: ");
@@ -249,6 +263,8 @@ int main(int argc, char** argv)
 
 		TOCK;
 
+		print_dataset(&dataset, dataset.n_attributes, dataset.n_observations);
+
 		// Remove duplicates
 		ROOT_SAYS("Removing duplicates: ");
 		TICK;
@@ -257,7 +273,52 @@ int main(int argc, char** argv)
 
 		TOCK;
 		ROOT_SHOWS("  %lu duplicate(s) removed\n", duplicates);
-	}
+
+		print_dataset(&dataset, dataset.n_attributes, dataset.n_observations);
+
+		// Set JNSQ
+		ROOT_SAYS("Setting up JNSQ attributes: ");
+				TICK;
+
+				uint64_t max_inconsistency = add_jnsqs(&dataset);
+
+				// Update number of bits needed for jnsqs
+				if (max_inconsistency > 0)
+				{
+					// How many bits are needed for jnsq attributes
+					uint8_t n_bits_for_jnsq = ceil(log2(max_inconsistency + 1));
+
+					dataset.n_bits_for_jnsqs = n_bits_for_jnsq;
+				}
+
+				TOCK;
+				ROOT_SHOWS("  Max JNSQ: %lu", max_inconsistency);
+				ROOT_SHOWS(" [%d bits]\n", dataset.n_bits_for_jnsqs);
+
+									// JNSQ attributes are treated just like all the other attributes from
+					// this point forward
+					dataset.n_attributes += dataset.n_bits_for_jnsqs;
+
+					print_dataset(&dataset, dataset.n_attributes, dataset.n_observations);
+
+		// Sort dataset by class
+				ROOT_SAYS("Sorting dataset by class: ");
+				TICK;
+
+				/**
+				 * We need to sort by the class word
+				 * so we can't use the standard qsort implementation
+				 */
+				sort_r(dataset.data, dataset.n_observations,
+					   dataset.n_words * sizeof(word_t), compare_lines_by_class,
+					   &dataset.n_words);
+
+				TOCK;
+
+				print_dataset(&dataset, dataset.n_attributes, dataset.n_observations);	}
+
+	// Must make sure the dataset is filled before proceeding
+		MPI_Barrier(node_comm);
 
 	// Share current dataset attributes
 	MPI_Bcast(&(dataset.n_attributes), 1, MPI_UINT64_T, LOCAL_ROOT_RANK,
@@ -268,29 +329,14 @@ int main(int argc, char** argv)
 			  node_comm);
 	MPI_Bcast(&(dataset.n_bits_for_class), 1, MPI_UINT8_T, LOCAL_ROOT_RANK,
 			  node_comm);
+	MPI_Bcast(&(dataset.n_bits_for_jnsqs), 1, MPI_UINT8_T, LOCAL_ROOT_RANK, node_comm);
 	MPI_Bcast(&(dataset.n_words), 1, MPI_UINT64_T, LOCAL_ROOT_RANK, node_comm);
 
 	// Fill class arrays
 	ROOT_SAYS("Checking classes: ");
 	TICK;
 
-	/**
-	 * Array that stores the number of observations for each class
-	 */
-	dataset.n_observations_per_class
-		= (uint64_t*) calloc(dataset.n_classes, sizeof(uint64_t));
-	assert(dataset.n_observations_per_class != NULL);
-
-	/**
-	 * Matrix that stores the list of observations per class
-	 */
-	dataset.observations_per_class = (word_t**) calloc(
-		dataset.n_classes * dataset.n_observations, sizeof(word_t*));
-	assert(dataset.observations_per_class != NULL);
-
-	// Must make sure the dataset is filled before proceeding
-	MPI_Barrier(node_comm);
-
+	dataset.classes = (line_class_t*)calloc(dataset.n_classes,sizeof(line_class_t));
 	if (fill_class_arrays(&dataset) != OK)
 	{
 		return EXIT_FAILURE;
@@ -303,50 +349,9 @@ int main(int argc, char** argv)
 		for (uint64_t i = 0; i < dataset.n_classes; i++)
 		{
 			ROOT_SHOWS("  Class %lu: ", i);
-			ROOT_SHOWS("%lu item(s)\n", dataset.n_observations_per_class[i]);
+			ROOT_SHOWS("%lu item(s)\n", dataset.classes[i].n_observations);
 		}
 	}
-
-	// Must make sure everyone has finished before changing the dataset
-	MPI_Barrier(node_comm);
-
-	// Set JNSQ
-	if (node_rank == LOCAL_ROOT_RANK)
-	{
-		ROOT_SAYS("Setting up JNSQ attributes: ");
-		TICK;
-
-		uint64_t max_inconsistency = add_jnsqs(&dataset);
-
-		// Update number of bits needed for jnsqs
-		if (max_inconsistency > 0)
-		{
-			// How many bits are needed for jnsq attributes
-			uint8_t n_bits_for_jnsq = ceil(log2(max_inconsistency + 1));
-
-			dataset.n_bits_for_jnsqs = n_bits_for_jnsq;
-		}
-
-		TOCK;
-		ROOT_SHOWS("  Max JNSQ: %lu", max_inconsistency);
-		ROOT_SHOWS(" [%d bits]\n", dataset.n_bits_for_jnsqs);
-	}
-
-	// Update dataset data because only node_root knows if we added jnsqs
-	MPI_Bcast(&(dataset.n_bits_for_jnsqs), 1, MPI_UINT8_T, LOCAL_ROOT_RANK,
-			  node_comm);
-
-	// JNSQ attributes are treated just like all the other attributes from
-	// this point forward
-	dataset.n_attributes += dataset.n_bits_for_jnsqs;
-
-	// n_words may have changed?
-	// If we have 5 classes (3 bits) and only one bit is in the last word
-	// If we only use 2 bits for jnsqs then we need one less n_words
-	// This could impact all the calculations that assume n_words - 1
-	// is the last word!
-	dataset.n_words = dataset.n_attributes / WORD_BITS
-		+ (dataset.n_attributes % WORD_BITS != 0);
 
 	// End setup dataset
 
@@ -365,24 +370,24 @@ int main(int argc, char** argv)
 	// Calculate the number of disjoint matrix lines
 	dm.n_matrix_lines = get_dm_n_lines(&dataset);
 
-	// Distribute attributes by the processes
-	// To avoid having to share words between processes we distribute
-	// blocks of WORD_BITS attributes for each process
-	dm.a_offset = BLOCK_LOW(rank, size, dataset.n_words);
-	dm.a_size	= BLOCK_SIZE(rank, size, dataset.n_words);
+
+
+	/**
+	 * Distribute attributes by the processes
+	 *
+	 * To avoid having to share words between processes and take advanteg of cache hits we distribute blocks of 512 bits attributes for each process
+	 */
+	uint64_t nblocks = (dataset.n_words-1)/8; //8*64=512
+
+	uint64_t low_block =BLOCK_LOW(rank, size, nblocks);
+	uint64_t block_size = BLOCK_SIZE(rank, size, nblocks);
+
+	dm.a_offset = low_block*8;
+	dm.a_size	= block_size*8;
 
 	dm.first_attribute = dm.a_offset * WORD_BITS;
-
-	dm.n_attributes = MIN(dm.a_size * WORD_BITS, dataset.n_attributes);
-
-	if (dm.n_attributes > 0)
-	{
-		dm.last_attribute = dm.first_attribute + dm.n_attributes - 1;
-	}
-	else
-	{
-		dm.last_attribute = dm.first_attribute;
-	}
+	dm.last_attribute = MIN(dm.first_attribute+(dm.a_size) * WORD_BITS, dataset.n_attributes);
+	dm.n_attributes=dm.last_attribute-dm.first_attribute;
 
 	TOCK;
 
@@ -396,17 +401,18 @@ int main(int argc, char** argv)
 
 		for (int r = 0; r < size; r++)
 		{
-			uint64_t a_offset = BLOCK_LOW(r, size, dataset.n_words);
-			uint64_t a_size	  = BLOCK_SIZE(r, size, dataset.n_words);
+			uint64_t nblocks = (dataset.n_words-1)/8; //8*64=512
+
+			uint64_t low_block =BLOCK_LOW(r, size, nblocks);
+			uint64_t block_size = BLOCK_SIZE(r, size, nblocks);
+
+			uint64_t a_offset = low_block*8;
+			uint64_t a_size	  = block_size*8;
 
 			uint64_t first_attribute = a_offset * WORD_BITS;
-			uint64_t n_attributes
-				= MIN(a_size * WORD_BITS, dataset.n_attributes);
-			uint64_t last_attribute = dm.first_attribute;
-			if (n_attributes > 0)
-			{
-				last_attribute = first_attribute + n_attributes - 1;
-			}
+			uint64_t last_attribute = MIN(first_attribute+a_size * WORD_BITS, dataset.n_attributes);
+			//uint64_t last_attribute = first_attribute+a_size * WORD_BITS;
+			uint64_t n_attributes = last_attribute - first_attribute;
 
 			if (a_size > 0)
 			{
@@ -467,8 +473,8 @@ int main(int argc, char** argv)
 	/**
 	 * Number of words needed to store a column (attribute data)
 	 */
-	dm.n_words_in_a_column
-		= dm.n_matrix_lines / WORD_BITS + (dm.n_matrix_lines % WORD_BITS != 0);
+	dm.n_words_in_a_column = dm.n_matrix_lines / WORD_BITS + (dm.n_matrix_lines % WORD_BITS != 0);
+	//dm.n_words_in_a_column = roundUp(dm.n_matrix_lines, 512) / WORD_BITS;
 
 	/**
 	 * Bit array with the information about the lines covered (1) or not (0) by
@@ -481,16 +487,14 @@ int main(int argc, char** argv)
 	 * The number of attributes is rounded so we can check all bits during
 	 * the attribute totals calculation, avoiding one if in the inner cycle
 	 */
-	uint64_t* attribute_totals
-		= (uint64_t*) calloc(dm.a_size * WORD_BITS, sizeof(uint64_t));
+	uint64_t* attribute_totals = (uint64_t*) calloc(dm.a_size * WORD_BITS, sizeof(uint64_t));
 
 	// The covered lines and selected attributes are bit arrays
 	/**
 	 * Bit array with the information about the lines already covered (1) or
 	 * not (0) so far
 	 */
-	word_t* covered_lines
-		= (word_t*) calloc(dm.n_words_in_a_column, sizeof(word_t));
+	word_t* covered_lines = (word_t*) calloc(dm.n_words_in_a_column, sizeof(word_t));
 
 	/**
 	 * Selected attributes aka the solution, only root needs them
@@ -523,14 +527,18 @@ int main(int argc, char** argv)
 	uint64_t n_uncovered_lines = dm.n_matrix_lines;
 
 	// Calculate initial values
-	calculate_attribute_totals_add(&dataset, &dm, covered_lines,
-								   attribute_totals);
+	calculate_attribute_totals_add(&dataset, &dm, covered_lines, attribute_totals);
+
+//	for (uint64_t a=0;a<dm.n_attributes; a++){
+//				printf("%lu ", attribute_totals[a]);
+//			}
+//
+//			printf("\n");
 
 	while (true)
 	{
 		// What is my best attribute?
-		best_attribute_t local_max
-			= get_best_attribute(attribute_totals, dm.n_attributes);
+		best_attribute_t local_max = get_best_attribute(attribute_totals, dm.n_attributes);
 
 		// My best attribute translates to which global attribute?
 		if (local_max.attribute != -1)
@@ -587,12 +595,10 @@ int main(int argc, char** argv)
 		{
 
 			// Update covered lines
-			update_covered_lines(best_column, dm.n_words_in_a_column,
-								 covered_lines);
+			update_covered_lines(best_column, dm.n_words_in_a_column, covered_lines);
 
 			// Update attributes totals
-			calculate_attribute_totals_add(&dataset, &dm, covered_lines,
-										   attribute_totals);
+			calculate_attribute_totals_add(&dataset, &dm, covered_lines, attribute_totals);
 		}
 		else
 		{
@@ -656,7 +662,7 @@ show_solution:
 	free(selected_attributes);
 
 	PRINT_TIMING_GLOBAL;
-
+//end:
 	/* shut down MPI */
 	MPI_Finalize();
 
