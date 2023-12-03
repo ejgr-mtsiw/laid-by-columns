@@ -26,30 +26,45 @@ void set_jnsq_bits(word_t* line, uint64_t inconsistency,
 	// Words that have attributes
 	uint64_t true_n_words =  n_attributes/ WORD_BITS + (n_attributes% WORD_BITS != 0);
 
-	// The first word with jnsq
-	uint64_t word_with_jnsq = true_n_words-1+n_words*0;
-
-	// How many attributes remain on last word with attributes
-	uint8_t remaining_bits = n_attributes % WORD_BITS;
-
 	// n jnsq bits needed
-	uint8_t n_bits_needed = n_bits_for_class;
+	uint8_t n_bits_needed = n_bits_for_class+0*n_words;
 
-	//printf("nw[%lu] tnw[%lu] wwjnsq[%lu] rb[%d] nbn[%d] i[%lu]\n", n_words, true_n_words, word_with_jnsq, remaining_bits, n_bits_needed, inconsistency);
+	// How many attributes remain free on last word with attributes
+	uint8_t attributes_last_word = n_attributes % WORD_BITS;
 
-	if (remaining_bits+n_bits_needed >WORD_BITS) {
+	uint8_t free_bits_last_word = 0;
+
+	// The first word with jnsq
+	uint64_t word_with_jnsq = 0;
+
+	if (attributes_last_word==0){
+		word_with_jnsq=true_n_words;
+		free_bits_last_word=WORD_BITS;
+	} else {
+		word_with_jnsq=true_n_words-1;
+		free_bits_last_word=WORD_BITS-attributes_last_word;
+	}
+
+//	uint64_t inc=inconsistency;
+//
+//	if (inc>0){
+//	printf("nw[%lu] tnw[%lu] wwjnsq[%lu] fblw[%d] nbn[%d] i[%lu]\n", n_words, true_n_words, word_with_jnsq, free_bits_last_word, n_bits_needed, inconsistency);
+//
+//	print_line(line, 2, 5);
+//	}
+
+	if (n_bits_needed > free_bits_last_word) {
 		// We must split the jnsq attributes
 
 		// n jnsq bits on first word
-		uint8_t n_bits = WORD_BITS - remaining_bits;
+		uint8_t n_bits = free_bits_last_word;
 
 		// Invert consistency
-		inconsistency = invert_n_bits((word_t) inconsistency, n_bits);
+		if (n_bits>1){
+			inconsistency = invert_n_bits((word_t) inconsistency, n_bits);
+		}
 
 		line[word_with_jnsq]=set_bits(line[word_with_jnsq], inconsistency, 0, n_bits);
-
-		// There's no more attributes
-		remaining_bits=0;
 
 		// Remove used bits from inconsistency
 		inconsistency >>= n_bits;
@@ -59,15 +74,30 @@ void set_jnsq_bits(word_t* line, uint64_t inconsistency,
 
 		// next word_with_jnsq
 		word_with_jnsq++;
+
+		// There's no more attributes
+		free_bits_last_word=WORD_BITS;
 	}
 
-	// All remaining jnsq bits are in the same word
-	uint8_t jnsq_start = WORD_BITS - remaining_bits - n_bits_needed;
+//	if(inc>0){
+//		print_line(line, 2, 5);
+//	}
 
-	// Invert consistency
-	inconsistency = invert_n_bits((word_t) inconsistency, n_bits_needed);
+	// All remaining jnsq bits are in the same word
+	uint8_t jnsq_start = free_bits_last_word-n_bits_needed;
+
+	// Invert consistency, if needed
+	if (n_bits_needed>1){
+		inconsistency = invert_n_bits((word_t) inconsistency, n_bits_needed);
+	}
+
+//	printf("js[%d] fblw[%d] nbn[%d] i[%lu]\n", jnsq_start, free_bits_last_word, n_bits_needed, inconsistency);
 
 	line[word_with_jnsq] = set_bits(line[word_with_jnsq], inconsistency, jnsq_start, n_bits_needed);
+
+//	if(inc>0){
+//		print_line(line, 2, 5);
+//		}
 }
 
 //void update_jnsq(word_t* to_update, const word_t* to_compare,

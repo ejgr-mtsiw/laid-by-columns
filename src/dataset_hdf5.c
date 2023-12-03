@@ -96,8 +96,6 @@ oknok_t hdf5_read_dataset_attributes(hid_t dataset_id, dataset_t* dataset)
 		// Bits needed for attributes and jnsq (max)
 			uint64_t total_bits = dataset->n_attributes + dataset->n_bits_for_class;
 
-
-
 			// Round up to the nearest multiple of 512
 			// 512 bits = 1 cache line
 			total_bits=roundUp(total_bits, 512);
@@ -109,9 +107,6 @@ oknok_t hdf5_read_dataset_attributes(hid_t dataset_id, dataset_t* dataset)
 			n_words++;
 
 			dataset->n_words=n_words;
-
-			printf("na %lu, bnc %d, nbj %d, nc %lu, no %lu, tb %lu, nw %lu\n", dataset->n_attributes, dataset->n_bits_for_class, dataset->n_bits_for_jnsqs, dataset->n_classes
-					,dataset->n_observations, total_bits, n_words);
 
 	return OK;
 }

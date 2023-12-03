@@ -254,17 +254,18 @@ void print_dataset(dataset_t * dataset, uint64_t n_attributes, uint64_t n_observ
 }
 
 void print_line(word_t*line,uint64_t n_words, uint64_t n_attributes){
-					uint64_t na=0;
-					for (uint64_t i=0;i<n_words && na<n_attributes;i++){
-						word_t w = line[i];
-						for (int8_t bit=WORD_BITS-1;bit>=0 && na < n_attributes;bit--,na++){
-							if (BIT_CHECK(w, bit)) {
-							printf("1 ");
-							} else {
-								printf("0 ");
-							}
-						}
-					}
-					printf(" [%lu]", line[n_words-1]);
-					printf("\n");
+	uint64_t na=0;
+	for (uint64_t i=0;i<n_words && na<n_attributes;i++){
+		word_t w = line[i];
+		for (int8_t bit=WORD_BITS-1;bit>=0 && na < n_attributes;bit--,na++){
+			if (BIT_CHECK(w, bit)) {
+			printf("1");
+			} else {
+				printf("0");
+			}
+		}
+		printf(" ");
+	}
+	printf(" [%lu]", line[n_words-1]);
+	printf("\n");
 }

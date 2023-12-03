@@ -151,6 +151,138 @@ int main(int argc, char** argv)
 	 */
 	SETUP_TIMING;
 
+//	/**************************************************/
+//	word_t line[3]={0xf000000000000001,0x0000000000000000,0x0000000000000005};
+//
+//	set_jnsq_bits(line, 0, 4, 1, 1 );
+//	print_line(line, 2, 5);
+//
+//	line[0]=0xf00000000000000f;
+//	set_jnsq_bits(line, 0, 4, 1, 1 );
+//	print_line(line, 2, 5);
+//
+//	line[0]=0xf000000000000001;
+//	set_jnsq_bits(line, 1, 4, 1, 1 );
+//	print_line(line, 2, 5);
+//
+//
+//
+//	line[0]=0xf000000000000001;
+//	set_jnsq_bits(line, 0, 4, 2, 2 );
+//	print_line(line, 2, 6);
+//
+//	line[0]=0xf000000000000001;
+//	set_jnsq_bits(line, 1, 4, 2, 2 );
+//	print_line(line, 2, 6);
+//
+//	line[0]=0xf000000000000001;
+//	set_jnsq_bits(line, 2, 4, 2, 2 );
+//	print_line(line, 2, 6);
+//
+//	line[0]=0xf000000000000001;
+//	set_jnsq_bits(line, 3, 4, 2, 2 );
+//	print_line(line, 2, 6);
+//
+//
+//
+//	line[0]=0xf00000000000000f;
+//	line[1]=0;
+//	set_jnsq_bits(line, 0, 64, 3, 1 );
+//	print_line(line, 3, 67);
+//
+//	line[0]=0xf000000000000001;
+//	line[1]=0UL;
+//	set_jnsq_bits(line, 1, 64, 3, 1 );
+//	print_line(line, 3, 67);
+//
+//	line[0]=0xf000000000000001;
+//	line[1]=0UL;
+//	set_jnsq_bits(line, 0, 64, 3, 2 );
+//	print_line(line, 3, 67);
+//
+//	line[0]=0xf000000000000001;
+//	line[1]=0UL;
+//	set_jnsq_bits(line, 1, 64, 2, 2 );
+//	print_line(line, 3, 67);
+//
+//	line[0]=0xf000000000000001;
+//	line[1]=0UL;
+//	set_jnsq_bits(line, 2, 64, 2, 2 );
+//	print_line(line, 3, 67);
+//
+//    line[0]=0xf000000000000001;
+//    line[1]=0UL;
+//    set_jnsq_bits(line, 3, 64, 2, 2 );
+//    print_line(line, 3, 67);
+//
+//
+//
+//	line[0]=0xf00000000000000f;
+//	line[1]=0UL;
+//	set_jnsq_bits(line, 0, 63, 3, 1 );
+//	print_line(line, 3, 67);
+//
+//	line[0]=0xf000000000000001;
+//	line[1]=0UL;
+//	set_jnsq_bits(line, 1, 63, 3, 1 );
+//	print_line(line, 3, 67);
+//
+//	line[0]=0xf000000000000001;
+//	line[1]=0UL;
+//	set_jnsq_bits(line, 0, 63, 3, 2 );
+//	print_line(line, 3, 67);
+//
+//	line[0]=0xf000000000000001;
+//	line[1]=0UL;
+//	set_jnsq_bits(line, 1, 63, 2, 2 );
+//	print_line(line, 3, 67);
+//
+//	line[0]=0xf000000000000001;
+//	line[1]=0UL;
+//	set_jnsq_bits(line, 2, 63, 2, 2 );
+//	print_line(line, 3, 67);
+//
+//    line[0]=0xf000000000000001;
+//    line[1]=0UL;
+//    set_jnsq_bits(line, 3, 63, 2, 2 );
+//    print_line(line, 3, 67);
+//
+//
+//
+//    line[0]=0xf00000000000000f;
+//	line[1]=0UL;
+//	set_jnsq_bits(line, 0, 63, 3, 5 );
+//	print_line(line, 3, 70);
+//
+//	line[0]=0xf000000000000001;
+//	line[1]=0UL;
+//	set_jnsq_bits(line, 1, 63, 3, 5 );
+//	print_line(line, 3, 70);
+//
+//	line[0]=0xf000000000000001;
+//	line[1]=0UL;
+//	set_jnsq_bits(line, 8, 63, 3, 5 );
+//	print_line(line, 3, 70);
+//
+//	line[0]=0xf000000000000001;
+//	line[1]=0UL;
+//	set_jnsq_bits(line, 11, 63, 2, 5 );
+//	print_line(line, 3, 70);
+//
+//	line[0]=0xf000000000000001;
+//	line[1]=0UL;
+//	set_jnsq_bits(line, 12, 63, 2, 5 );
+//	print_line(line, 3, 70);
+//
+//	line[0]=0xf000000000000001;
+//	line[1]=0UL;
+//	set_jnsq_bits(line, 13, 63, 2, 5 );
+//	print_line(line, 3, 70);
+//
+//	goto end;
+//
+//	/**************************************************/
+
 	/**
 	 * The dataset
 	 */
@@ -185,21 +317,6 @@ int main(int argc, char** argv)
 
 		// Load dataset attributes
 		hdf5_read_dataset_attributes(hdf5_dset.dataset_id, &dataset);
-
-//		// Bits needed for attributes and jnsq (max)
-//		uint32_t total_bits = dataset.n_attributes + dataset.n_bits_for_class;
-//
-//		// Round up to the nearest multiple of 512
-//		// 512 bits = 1 cache line
-//		roundUp(total_bits, 512);
-//
-//		// How many words (64 bits) will be allocated
-//		uint64_t n_words = total_bits / WORD_BITS + (total_bits % WORD_BITS != 0);
-//
-//		// Add one word for the line class
-//		n_words++;
-//
-//		dataset.n_words=n_words;
 
 		shared_data_size = dataset.n_observations * dataset.n_words;
 	}
@@ -386,8 +503,8 @@ int main(int argc, char** argv)
 	dm.a_size	= block_size*8;
 
 	dm.first_attribute = dm.a_offset * WORD_BITS;
-	dm.last_attribute = MIN(dm.first_attribute+(dm.a_size) * WORD_BITS, dataset.n_attributes);
-	dm.n_attributes=dm.last_attribute-dm.first_attribute;
+	dm.last_attribute = MIN(dm.first_attribute+(dm.a_size) * WORD_BITS-1, dataset.n_attributes);
+	dm.n_attributes=dm.last_attribute-dm.first_attribute+1;
 
 	TOCK;
 
@@ -410,9 +527,11 @@ int main(int argc, char** argv)
 			uint64_t a_size	  = block_size*8;
 
 			uint64_t first_attribute = a_offset * WORD_BITS;
-			uint64_t last_attribute = MIN(first_attribute+a_size * WORD_BITS, dataset.n_attributes);
-			//uint64_t last_attribute = first_attribute+a_size * WORD_BITS;
-			uint64_t n_attributes = last_attribute - first_attribute;
+			uint64_t last_attribute = MIN(first_attribute+a_size * WORD_BITS-1, dataset.n_attributes);
+			uint64_t n_attributes = last_attribute - first_attribute+1;
+
+//			printf("nw %lu, nb %lu, lb %lu, bs %lu, ao %lu, as %lu, fa %lu, la %lu, na %lu\n", dataset.n_words, nblocks,
+//					low_block, block_size, a_offset, a_size, first_attribute, last_attribute, n_attributes);
 
 			if (a_size > 0)
 			{
@@ -548,6 +667,7 @@ int main(int argc, char** argv)
 		// Reset best
 		best_attribute_t best_max = { .n_covered_lines = 0, .attribute = -1 };
 
+all_reduce:
 		MPI_Allreduce(&local_max, &best_max, 1, ctype, myOp, comm);
 
 		/**
@@ -580,6 +700,11 @@ int main(int argc, char** argv)
 			goto show_solution;
 		}
 
+		if (dm.n_attributes==0){
+			// We have nothing to do, but must participate in the MPI_Allreduce
+			goto all_reduce;
+		}
+
 		// Get the data for the best attribute
 		get_column(&dataset, &dm, best_max.attribute, best_column);
 
@@ -590,31 +715,31 @@ int main(int argc, char** argv)
 		 * contribution of the covered lines.
 		 * The objetive is to reduce the number of lines generated.
 		 */
-//		if (n_uncovered_lines < best_max.n_covered_lines)
-//		{
+		if (n_uncovered_lines < best_max.n_covered_lines)
+		{
 
 			// Update covered lines
 			update_covered_lines(best_column, dm.n_words_in_a_column, covered_lines);
 
 			// Update attributes totals
 			calculate_attribute_totals_add(&dataset, &dm, covered_lines, attribute_totals);
-//		}
-//		else
-//		{
-//			// Update best attribute data, leaving only the new covered lines
-//			for (uint64_t w = 0; w < dm.n_words_in_a_column; w++)
-//			{
-//				best_column[w] &= ~covered_lines[w];
-//			}
-//
-//			// Update attributes totals
-//			calculate_attribute_totals_sub(&dataset, &dm, best_column,
-//										   attribute_totals);
-//
-//			// Update covered lines
-//			update_covered_lines(best_column, dm.n_words_in_a_column,
-//								 covered_lines);
-//		}
+		}
+		else
+		{
+			// Update best attribute data, leaving only the new covered lines
+			for (uint64_t w = 0; w < dm.n_words_in_a_column; w++)
+			{
+				best_column[w] &= ~covered_lines[w];
+			}
+
+			// Update attributes totals
+			calculate_attribute_totals_sub(&dataset, &dm, best_column,
+										   attribute_totals);
+
+			// Update covered lines
+			update_covered_lines(best_column, dm.n_words_in_a_column,
+								 covered_lines);
+		}
 	}
 
 show_solution:
